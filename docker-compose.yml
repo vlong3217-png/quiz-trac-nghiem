@@ -88,6 +88,64 @@ services:
     networks:
       - quiz_network
 
+  # 6. Prometheus Service (Thu thap Metrics tu Backend, cAdvisor, va chinh no)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: quiz_prometheus
+    restart: unless-stopped
+    ports:
+      - "${PROMETHEUS_PORT:-9091}:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    depends_on:
+      - backend
+    networks:
+      - quiz_network
+
+  # 7. cAdvisor Service (Thu thap Metrics tai nguyen CPU, RAM, Network cua cac Docker containers)
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: quiz_cadvisor
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    networks:
+      - quiz_network
+
+  # 8. Grafana Service (Truc quan hoa Dashboard thong so he thong)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: quiz_grafana
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin123}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - quiz_network
+
 networks:
   quiz_network:
     name: quiz_system_network
@@ -96,3 +154,7 @@ networks:
 volumes:
   mysql_data:
     name: quiz_mysql_data
+  prometheus_data:
+    name: quiz_prometheus_data
+  grafana_data:
+    name: quiz_grafana_data

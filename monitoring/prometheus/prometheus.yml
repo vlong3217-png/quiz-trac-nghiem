@@ -1,0 +1,24 @@
+# ==============================================================
+# PROMETHEUS CONFIGURATION
+# ==============================================================
+
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+
+scrape_configs:
+  # 1. Scrape Prometheus chinh no
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 2. Scrape cAdvisor (Metrics tai nguyen containers Docker: CPU, RAM, Network)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # 3. Scrape Backend Node.js API (Metrics runtime, HTTP requests qua prom-client)
+  - job_name: 'quiz_backend'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['backend:5000']

@@ -14,16 +14,51 @@ const userRoutes = require('./routes/userRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Prometheus Metrics Setup
+const client = require('prom-client');
+const register = new client.Registry();
+client.collectDefaultMetrics({ register });
+
+// Custom HTTP Metrics
+const httpRequestDurationMicroseconds = new client.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'code'],
+  buckets: [0.01, 0.05, 0.1, 0.3, 0.5, 1, 2, 5]
+});
+register.registerMetric(httpRequestDurationMicroseconds);
+
 // Middleware co ban
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Logging don gian cho moi Request
+// Metrics & Logging Middleware
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
   console.log(`[${timestamp}] ${req.method} ${req.url}`);
+
+  const start = process.hrtime();
+  res.on('finish', () => {
+    const diff = process.hrtime(start);
+    const duration = diff[0] + diff[1] / 1e9;
+    const route = req.route ? req.route.path : req.path;
+    httpRequestDurationMicroseconds
+      .labels(req.method, route, res.statusCode)
+      .observe(duration);
+  });
+
   next();
+});
+
+// Prometheus Scrape Endpoint
+app.get('/metrics', async (req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (ex) {
+    res.status(500).end(ex);
+  }
 });
 
 // Phuc vu static files frontend truc tiep tu backend (thuan tien khi chay 1 port hoac qua web server)
