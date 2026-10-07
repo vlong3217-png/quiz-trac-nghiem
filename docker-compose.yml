@@ -1,5 +1,55 @@
 services:
-  # 1. Database MySQL Service
+  # 1. Nginx Reverse Proxy Service (Dung truoc toan bo he thong, nhan HTTP/HTTPS)
+  reverse_proxy:
+    image: nginx:alpine
+    container_name: quiz_proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - quiz_network
+
+  # 2. Frontend Web Service (Static HTML/CSS/JS phuc vu boi Nginx noi bo, khong expose port ra ngoai host)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: quiz_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - quiz_network
+
+  # 3. Backend Node.js API Service (Chi trao doi noi bo voi Nginx qua port 5000)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: quiz_backend
+    restart: unless-stopped
+    environment:
+      PORT: 5000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-root123456}
+      DB_NAME: ${DB_NAME:-quiz_system}
+      JWT_SECRET: ${JWT_SECRET:-quiz_system_super_secret_jwt_key_2026}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - quiz_network
+
+  # 4. Database MySQL Service
   mysql:
     image: mysql:8.0
     container_name: quiz_mysql
@@ -21,44 +71,7 @@ services:
       retries: 5
       start_period: 20s
 
-  # 2. Backend Node.js API Service
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: quiz_backend
-    restart: unless-stopped
-    environment:
-      PORT: 5000
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: ${DB_USER:-root}
-      DB_PASSWORD: ${DB_PASSWORD:-root123456}
-      DB_NAME: ${DB_NAME:-quiz_system}
-      JWT_SECRET: ${JWT_SECRET:-quiz_system_super_secret_jwt_key_2026}
-    ports:
-      - "${BACKEND_PORT:-5000}:5000"
-    depends_on:
-      mysql:
-        condition: service_healthy
-    networks:
-      - quiz_network
-
-  # 3. Frontend Nginx Web Service
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: quiz_frontend
-    restart: unless-stopped
-    ports:
-      - "${FRONTEND_PORT:-80}:80"
-    depends_on:
-      - backend
-    networks:
-      - quiz_network
-
-  # 4. phpMyAdmin Database Management Service
+  # 5. phpMyAdmin Database Management Service
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
     container_name: quiz_phpmyadmin
