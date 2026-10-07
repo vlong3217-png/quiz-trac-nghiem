@@ -1,180 +1,155 @@
-# HỆ THỐNG QUIZ / THI TRẮC NGHIỆM TRỰC TUYẾN (ĐỀ TÀI 35)
+# HỆ THỐNG THI TRẮC NGHIỆM TRỰC TUYẾN (QUIZ SYSTEM)
 
-> Dự án phục vụ bài thực hành môn **Triển khai và Quản trị Hệ thống Phần mềm**.
-
-Hệ thống cho phép:
-* Tạo đề thi trắc nghiệm và quản lý câu hỏi, đáp án (A, B, C, D).
-* Thí sinh đăng ký, đăng nhập và tham gia thi trắc nghiệm trực tuyến có đồng hồ đếm ngược.
-* Chấm điểm tự động trên thang điểm 10 ngay khi nộp bài.
-* Xem lại chi tiết kết quả, giải thích đáp án đúng/sai và lưu lịch sử thi.
-* Quản trị viên (ADMIN) theo dõi thống kê kết quả thi toàn hệ thống.
+Hệ thống thi trắc nghiệm trực tuyến hỗ trợ đa dạng 5 loại câu hỏi (Trắc nghiệm 1 đáp án, Chọn nhiều đáp án, Đúng/Sai, Điền vào chỗ trống, Phân loại nhóm).
 
 ---
 
-## 1. Công nghệ sử dụng
+## 1. Kiến trúc & Công nghệ
 
-* **Frontend**: HTML5, CSS3, JavaScript thuần (Vanilla JS), không sử dụng framework trung gian, giao diện Responsive hiện đại.
-* **Backend**: Node.js, Express.js (RESTful API).
-* **Database**: MySQL (kết nối qua thư viện `mysql2` Promise pool).
-* **Authentication**: JSON Web Token (JWT) và mã hóa mật khẩu Bcrypt.
+* **Frontend**: HTML5, CSS3, Vanilla JavaScript, chạy qua Web Server **Nginx** (Alpine).
+* **Backend**: Node.js v20 (Alpine), Express.js RESTful API.
+* **Database**: **MySQL 8.0** (InnoDB, utf8mb4_unicode_ci, persistent volume).
+* **Database Management**: **phpMyAdmin** giao diện web quản lý DB trực quan.
+* **Orchestration**: **Docker** & **Docker Compose** với network biệt lập.
 
 ---
 
-## 2. Cấu trúc thư mục
+## 2. Cấu trúc thư mục dự án
 
 ```text
 Hệ thống Quiz - Thi trắc nghiệm/
-│
 ├── backend/
-│   ├── config/
-│   │   └── db.js                 # Cấu hình Pool kết nối MySQL
-│   ├── controllers/
-│   │   ├── authController.js     # Đăng ký, đăng nhập, hồ sơ
-│   │   ├── examController.js     # Quản lý đề thi, nộp bài & chấm điểm
-│   │   ├── questionController.js # Quản lý câu hỏi & đáp án A, B, C, D
-│   │   └── resultController.js   # Kết quả thi, thống kê Dashboard
-│   ├── middleware/
-│   │   └── auth.js               # Xác thực JWT & phân quyền ADMIN/USER
-│   ├── routes/
-│   │   ├── authRoutes.js         # Routes /api/auth
-│   │   ├── examRoutes.js         # Routes /api/exams
-│   │   ├── questionRoutes.js     # Routes /api/questions
-│   │   ├── resultRoutes.js       # Routes /api/results
-│   │   └── userRoutes.js         # Routes /api/users
-│   ├── db/
-│   │   └── initDb.js             # Script tự động import schema vào MySQL
-│   ├── server.js                 # Khởi chạy Express server
-│   ├── package.json
-│   ├── .env.example
-│   └── .env
-│
+│   ├── config/               # Cấu hình Pool kết nối MySQL
+│   ├── controllers/          # Business logic (auth, exams, questions, results, users)
+│   ├── middleware/           # Middleware xác thực JWT
+│   ├── routes/               # Express routing (/api/*)
+│   ├── db/                   # Script khởi tạo DB
+│   ├── server.js             # Entrypoint backend Express
+│   ├── Dockerfile            # Dockerfile backend (Node.js Alpine)
+│   ├── .dockerignore
+│   └── package.json
 ├── frontend/
-│   ├── css/
-│   │   └── style.css             # Giao diện chính đồng bộ toàn website
-│   ├── js/
-│   │   └── auth.js               # Quản lý phiên đăng nhập & gọi API
-│   ├── index.html                # Trang chủ giới thiệu
-│   ├── login.html                # Trang đăng nhập
-│   ├── register.html             # Trang đăng ký
-│   ├── exams.html                # Danh sách các đề thi
-│   ├── exam-detail.html          # Chi tiết thông tin & thể lệ đề thi
-│   ├── quiz.html                 # Phòng thi: Làm bài, đếm giờ, nộp bài
-│   ├── result.html               # Kết quả bài thi & xem lại đáp án chi tiết
-│   ├── history.html              # Lịch sử các lần thi của thí sinh
-│   ├── admin.html                # Bảng điều khiển quản trị (Admin Dashboard)
-│   ├── admin-exams.html          # Quản lý đề thi (CRUD)
-│   ├── admin-questions.html      # Quản lý câu hỏi & các đáp án A-B-C-D
-│   └── admin-results.html        # Xem kết quả thi của tất cả thí sinh
-│
+│   ├── css/                  # CSS thiết kế giao diện
+│   ├── js/                   # Vanilla JS xử lý logic & gọi API
+│   ├── *.html                # Các trang giao diện người dùng & quản trị
+│   ├── nginx.conf            # Cấu hình Nginx Web Server & Reverse Proxy /api/
+│   ├── Dockerfile            # Dockerfile frontend (Nginx Alpine)
+│   └── .dockerignore
 ├── database/
-│   └── schema.sql                # Script tạo bảng và nạp sẵn dữ liệu mẫu
-│
+│   └── schema.sql            # Script tự động import schema & dữ liệu khởi tạo
+├── docker-compose.yml        # Docker Compose cấu hình 4 services
+├── .env.example              # File mẫu biến môi trường (an toàn, không chứa pass thật)
 ├── .gitignore
 └── README.md
 ```
 
 ---
 
-## 3. Yêu cầu môi trường
+## 3. Hướng dẫn khởi chạy bằng Docker (Khuyên dùng)
 
-1. **Node.js**: Phiên bản 18 trở lên (đã kiểm tra tương thích tốt với Node 20 & 24).
-2. **MySQL Server**: Phiên bản 8.0 trở lên hoặc MariaDB (đang chạy trên cổng `3306`).
+### Bước 1: Chuẩn bị biến môi trường
+Tạo file `.env` tại thư mục gốc từ file mẫu `.env.example`:
+
+```bash
+# Trên Linux / macOS:
+cp .env.example .env
+
+# Trên Windows (PowerShell):
+Copy-Item .env.example .env
+```
+
+Nếu muốn, bạn có thể chỉnh sửa mật khẩu `DB_PASSWORD` và `DB_ROOT_PASSWORD` trong file `.env`. Mặc định đã thiết lập an toàn cho môi trường test.
+
+### Bước 2: Khởi chạy toàn bộ hệ thống bằng Docker Compose
+
+Tại thư mục gốc dự án, thực hiện lệnh:
+
+```bash
+docker compose up -d --build
+```
+
+Lệnh này sẽ tự động:
+1. Tạo Docker Network riêng `quiz_system_network`.
+2. Khởi động container MySQL `quiz_mysql` và tự động nạp toàn bộ cấu trúc bảng + dữ liệu mẫu từ `database/schema.sql`.
+3. Build và khởi động container Backend `quiz_backend` kết nối tới MySQL thông qua DNS nội bộ service `mysql`.
+4. Build và khởi động container Frontend `quiz_frontend` với Nginx phục vụ web và proxy ngược `/api/` về `backend:5000`.
+5. Khởi động `quiz_phpmyadmin` để quản lý CSDL trực quan.
+
+### Bước 3: Truy cập hệ thống
+
+Sau khi khởi chạy thành công, mở trình duyệt:
+
+| Dịch vụ | Địa chỉ URL | Ghi chú |
+| :--- | :--- | :--- |
+| **Giao diện Web (Frontend)** | [http://localhost](http://localhost) | Cổng 80 (chạy qua Nginx) |
+| **Backend API** | [http://localhost:5000/api/health](http://localhost:5000/api/health) | Cổng 5000 (Node.js API) |
+| **phpMyAdmin** | [http://localhost:8080](http://localhost:8080) | Server: `mysql`, User: `root` |
+
+### Bước 4: Lệnh quản trị Docker hữu ích
+
+* **Kiểm tra trạng thái các container**:
+  ```bash
+  docker compose ps
+  ```
+* **Xem nhật ký hoạt động (logs)**:
+  ```bash
+  docker compose logs -f
+  # hoặc xem riêng từng service:
+  docker compose logs -f backend
+  ```
+* **Dừng toàn bộ hệ thống**:
+  ```bash
+  docker compose down
+  ```
+* **Dừng và xóa cả dữ liệu volume MySQL (khi muốn reset database về ban đầu)**:
+  ```bash
+  docker compose down -v
+  ```
 
 ---
 
-## 4. Hướng dẫn cài đặt và khởi chạy
+## 4. Hướng dẫn chạy thủ công trên máy Local (Không dùng Docker)
 
-### Bước 1: Cài đặt Dependencies cho Backend
+Nếu muốn phát triển hoặc chạy trực tiếp không qua Docker:
 
-Mở terminal tại thư mục gốc của dự án hoặc thư mục `backend`:
-
-```powershell
-cd backend
-npm install
-```
-
-### Bước 2: Cấu hình biến môi trường Database (.env)
-
-Mở tập tin [backend/.env](file:///c:/Users/Admin/OneDrive/Desktop/H%E1%BB%87%20th%E1%BB%91ng%20Quiz%20-%20Thi%20tr%E1%BA%AFc%20nghi%E1%BB%87m/backend/.env) và cập nhật mật khẩu root MySQL trên máy tính của bạn:
-
-```env
-PORT=5000
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=YOUR_MYSQL_PASSWORD_HERE
-DB_NAME=quiz_system
-JWT_SECRET=quiz_system_super_secret_jwt_key_2026
-```
-*(Nếu MySQL của bạn không đặt mật khẩu, hãy để trống `DB_PASSWORD=`)*.
-
-### Bước 3: Khởi tạo Cơ sở dữ liệu và nạp dữ liệu mẫu
-
-Có 2 cách thực hiện:
-
-* **Cách 1 (Tự động nhanh nhất qua lệnh Node.js)**:
-  Tại thư mục `backend`, chạy lệnh:
-  ```powershell
-  npm run init-db
-  ```
-  *(Script sẽ tự động đọc [database/schema.sql](file:///c:/Users/Admin/OneDrive/Desktop/H%E1%BB%87%20th%E1%BB%91ng%20Quiz%20-%20Thi%20tr%E1%BA%AFc%20nghi%E1%BB%87m/database/schema.sql), tạo database `quiz_system`, tạo 6 bảng dữ liệu và chèn sẵn 3 đề thi mẫu).*
-
-* **Cách 2 (Sử dụng MySQL Workbench / phpMyAdmin / MySQL CLI)**:
-  Mở phpMyAdmin hoặc MySQL Workbench, copy toàn bộ nội dung file [database/schema.sql](file:///c:/Users/Admin/OneDrive/Desktop/H%E1%BB%87%20th%E1%BB%91ng%20Quiz%20-%20Thi%20tr%E1%BA%AFc%20nghi%E1%BB%87m/database/schema.sql) và bấm **Execute / Go**.
-
-### Bước 4: Khởi động hệ thống
-
-Tại thư mục `backend`, chạy:
-
-```powershell
-npm start
-```
-(Hoặc chạy `npm run dev` nếu muốn tự động reload khi sửa code với nodemon).
-
-Mở trình duyệt web và truy cập địa chỉ:
-👉 **`http://localhost:5000`**
-
-*(Backend đã được tích hợp phục vụ trực tiếp toàn bộ trang Frontend HTML/CSS/JS mà không cần chạy thêm server phụ).*
+1. **Cài đặt thư viện backend**:
+   ```bash
+   cd backend
+   npm install
+   ```
+2. **Cấu hình database local**:
+   Chỉnh sửa file `backend/.env` với thông số MySQL trên máy cá nhân (`DB_HOST=127.0.0.1`, mật khẩu MySQL cá nhân).
+3. **Khởi tạo dữ liệu**:
+   ```bash
+   cd backend
+   npm run init-db
+   ```
+4. **Khởi động server**:
+   ```bash
+   cd backend
+   npm run dev   # hoặc npm start
+   ```
+   Truy cập: `http://localhost:5000`
 
 ---
 
 ## 5. Tài khoản thử nghiệm có sẵn
 
-Hệ thống đã nạp sẵn 2 tài khoản mẫu trong Database:
+Hệ thống đã nạp sẵn 2 tài khoản mẫu trong cơ sở dữ liệu:
 
-| Nhóm người dùng | Tên đăng nhập (Username) | Mật khẩu (Password) | Quyền hạn |
+| Loại tài khoản | Tên đăng nhập (Username) | Mật khẩu (Password) | Quyền hạn |
 | :--- | :--- | :--- | :--- |
-| **Quản trị viên** | `admin` | `admin123` | ADMIN (Quản lý đề, câu hỏi, xem tất cả bài thi) |
-| **Học viên** | `sinhvien` | `user123` | USER (Xem đề, làm bài, xem điểm, xem lời giải) |
+| **Quản trị viên** | `admin` | `admin123` | ADMIN (Quản lý đề, câu hỏi, sinh viên, xem kết quả) |
+| **Học viên** | `sinhvien` | `user123` | USER (Làm bài thi, xem điểm, lịch sử thi) |
 
-*(Bạn cũng có thể tự đăng ký tài khoản học viên mới tại trang Đăng Ký).*
+*(Bạn cũng có thể tự tạo tài khoản học viên mới tại trang Đăng Ký).*
 
 ---
 
-## 6. Danh sách RESTful API chính
+## 6. Các dạng câu hỏi được hỗ trợ
 
-### 🔐 Authentication (`/api/auth`)
-* `POST /api/auth/register`: Đăng ký tài khoản người dùng mới.
-* `POST /api/auth/login`: Đăng nhập, trả về JWT Token và thông tin User.
-* `GET /api/auth/me`: Lấy thông tin tài khoản đang đăng nhập từ Token.
-
-### 📝 Exams (`/api/exams`)
-* `GET /api/exams`: Lấy danh sách tất cả đề thi kèm số lượng câu hỏi.
-* `GET /api/exams/:id`: Lấy thông tin chi tiết một đề thi.
-* `GET /api/exams/:id/questions`: Lấy danh sách câu hỏi phục vụ làm bài (User không thấy đáp án đúng; Admin thấy toàn bộ).
-* `POST /api/exams/:id/submit`: Nộp bài thi, đối chiếu đáp án trong DB, tính điểm và lưu kết quả.
-* `POST /api/exams`: *(Admin)* Tạo đề thi mới.
-* `PUT /api/exams/:id`: *(Admin)* Cập nhật đề thi.
-* `DELETE /api/exams/:id`: *(Admin)* Xóa đề thi (tự động xóa kèm câu hỏi & kết quả liên quan).
-
-### ❓ Questions (`/api/questions`)
-* `GET /api/questions/:id`: Chi tiết 1 câu hỏi và các đáp án A, B, C, D.
-* `POST /api/questions`: *(Admin)* Thêm câu hỏi và 4 đáp án vào đề thi.
-* `PUT /api/questions/:id`: *(Admin)* Cập nhật câu hỏi và đáp án.
-* `DELETE /api/questions/:id`: *(Admin)* Xóa câu hỏi khỏi đề thi.
-
-### 📊 Results (`/api/results` & `/api/users`)
-* `GET /api/results`: Lấy danh sách kết quả (User chỉ thấy của mình, Admin thấy của mọi thí sinh).
-* `GET /api/results/:id`: Xem chi tiết kết quả một bài thi (từng câu đúng hay sai, bạn đã chọn câu nào, đáp án đúng là câu nào).
-* `GET /api/results/stats/summary`: *(Admin)* Thống kê tổng số đề, câu hỏi, lượt thi và điểm trung bình.
-* `GET /api/users/:id/results`: Lấy lịch sử thi của thí sinh theo ID.
+1. **Trắc nghiệm 1 đáp án** (`SINGLE_CHOICE`): 1 đáp án đúng duy nhất.
+2. **Chọn nhiều đáp án** (`MULTIPLE_CHOICE`): Tích chọn checkbox từ 2 đáp án đúng trở lên.
+3. **Đúng / Sai** (`TRUE_FALSE`): Chọn mệnh đề Đúng (True) hoặc Sai (False).
+4. **Điền vào chỗ trống** (`FILL_BLANK`): Nhập từ/cụm từ ngắn, so khớp tự động không phân biệt hoa thường.
+5. **Phân loại vào nhóm** (`CLASSIFICATION`): Phân loại danh sách các khái niệm/mục vào nhóm tương ứng.
