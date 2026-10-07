@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản lý kết quả thí sinh - Hệ thống thi trắc nghiệm</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="admin.html" class="brand-logo">
+        <span>Hệ thống thi trắc nghiệm</span>
+        <span class="brand-badge">Quản trị</span>
+      </a>
+      <ul class="nav-menu" id="navbar-menu">
+        <!-- Rendered via auth.js -->
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container" style="padding: 2rem 1.25rem; flex: 1;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h1 style="font-size: 1.6rem; font-weight: 700;">Quản Lý Kết Quả Thí Sinh</h1>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Danh sách toàn bộ các bài thi đã nộp</p>
+      </div>
+
+      <div>
+        <input type="text" id="filter-user-input" class="form-control" placeholder="Lọc theo tên hoặc đề thi..." style="width: 250px;">
+      </div>
+    </div>
+
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Thí sinh</th>
+              <th>Đề thi</th>
+              <th>Điểm số</th>
+              <th>Số câu đúng</th>
+              <th>Thời gian nộp</th>
+              <th style="text-align: right;">Hành động</th>
+            </tr>
+          </thead>
+          <tbody id="results-table-body">
+            <tr>
+              <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                Đang tải dữ liệu kết quả...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Hệ thống thi trắc nghiệm trực tuyến</p>
+    </div>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let allResults = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!Auth.requireAdminRole()) return;
+
+      loadAllResults();
+
+      document.getElementById('filter-user-input').addEventListener('input', (e) => {
+        const keyword = e.target.value.toLowerCase().trim();
+        const filtered = allResults.filter(r => 
+          r.username.toLowerCase().includes(keyword) || 
+          r.exam_title.toLowerCase().includes(keyword) ||
+          r.email.toLowerCase().includes(keyword)
+        );
+        renderTable(filtered);
+      });
+    });
+
+    async function loadAllResults() {
+      const tbody = document.getElementById('results-table-body');
+      const res = await apiRequest('/results');
+
+      if (!res.ok || !res.data.success) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 1.5rem;">Lỗi tải dữ liệu: ${escapeHtml(res.data.message || 'Lỗi kết nối')}</td></tr>`;
+        return;
+      }
+
+      allResults = res.data.data;
+      renderTable(allResults);
+    }
+
+    function renderTable(list) {
+      const tbody = document.getElementById('results-table-body');
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">Chưa có bài thi nào được nộp.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(r => `
+        <tr>
+          <td>#${r.id}</td>
+          <td>
+            <strong>${escapeHtml(r.username)}</strong>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(r.email)}</div>
+          </td>
+          <td>${escapeHtml(r.exam_title)}</td>
+          <td>
+            <strong style="color: ${r.score >= 5 ? 'var(--primary)' : 'var(--danger)'};">
+              ${r.score} / 10
+            </strong>
+          </td>
+          <td>${r.correct_answers} / ${r.total_questions}</td>
+          <td>${new Date(r.submitted_at).toLocaleString('vi-VN')}</td>
+          <td style="text-align: right;">
+            <a href="result.html?id=${r.id}" class="btn btn-secondary btn-sm">
+              Xem chi tiết
+            </a>
+          </td>
+        </tr>
+      `).join('');
+    }
+  </script>
+</body>
+</html>

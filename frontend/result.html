@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kết quả bài thi - Hệ thống thi trắc nghiệm</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .type-badge {
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+    }
+    .classification-review-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .classification-review-table th, .classification-review-table td {
+      padding: 0.55rem 0.85rem;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 0.85rem;
+    }
+    .classification-review-table th {
+      background: var(--bg-muted);
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .classification-review-table tr:last-child td {
+      border-bottom: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="exams.html" class="brand-logo">
+        <span>Hệ thống thi trắc nghiệm</span>
+      </a>
+      <ul class="nav-menu" id="navbar-menu">
+        <!-- Rendered via auth.js -->
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container" style="padding: 2rem 1.25rem; flex: 1; max-width: 820px;">
+    <div id="result-loading" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+      <div>Đang tải kết quả bài thi...</div>
+    </div>
+
+    <div id="result-content" style="display: none;">
+      <!-- Score Summary Card -->
+      <div class="card" style="text-align: center; padding: 2rem; margin-bottom: 1.5rem;">
+        <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.35rem;" id="res-exam-title">Kết Quả Bài Thi</h1>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;" id="res-submit-time"></p>
+
+        <div style="display: inline-flex; align-items: baseline; gap: 0.5rem; background: var(--bg-muted); border: 1px solid var(--border); padding: 0.75rem 2rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
+          <span style="font-size: 2.75rem; font-weight: 700; color: var(--primary);" id="res-score">0</span>
+          <span style="font-size: 1.25rem; font-weight: 600; color: var(--text-muted);">/ 10 Điểm</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; max-width: 480px; margin: 0 auto 1.5rem; text-align: center;">
+          <div style="background: var(--bg-main); border: 1px solid var(--border); padding: 0.75rem; border-radius: var(--radius-sm);">
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Số câu đúng</div>
+            <strong style="font-size: 1.2rem; color: var(--success);" id="res-correct">0</strong>
+          </div>
+          <div style="background: var(--bg-main); border: 1px solid var(--border); padding: 0.75rem; border-radius: var(--radius-sm);">
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Số câu sai</div>
+            <strong style="font-size: 1.2rem; color: var(--danger);" id="res-wrong">0</strong>
+          </div>
+          <div style="background: var(--bg-main); border: 1px solid var(--border); padding: 0.75rem; border-radius: var(--radius-sm);">
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Tỷ lệ đúng</div>
+            <strong style="font-size: 1.2rem; color: var(--primary);" id="res-percent">0%</strong>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+          <a href="exams.html" class="btn btn-primary">Làm đề khác</a>
+          <a href="history.html" class="btn btn-secondary">Xem lịch sử</a>
+        </div>
+      </div>
+
+      <!-- Question by question review -->
+      <div>
+        <h2 style="font-size: 1.2rem; font-weight: 600; margin-bottom: 1rem;">Chi Tiết Từng Câu Hỏi</h2>
+        <div id="review-list" style="display: flex; flex-direction: column; gap: 1rem;">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Hệ thống thi trắc nghiệm trực tuyến</p>
+    </div>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script>
+    const alphabet = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+    const typeMeta = {
+      'SINGLE_CHOICE': { title: 'Trắc nghiệm 1 đáp án', color: 'var(--primary)' },
+      'MULTIPLE_CHOICE': { title: 'Chọn nhiều đáp án', color: '#8b5cf6' },
+      'TRUE_FALSE': { title: 'Đúng / Sai', color: '#f59e0b' },
+      'FILL_BLANK': { title: 'Điền vào chỗ trống', color: '#10b981' },
+      'CLASSIFICATION': { title: 'Phân loại nhóm', color: '#06b6d4' }
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!Auth.requireAuth()) return;
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const resultId = urlParams.get('id');
+
+      if (!resultId) {
+        showToast('Không tìm thấy mã kết quả!', 'error');
+        window.location.href = 'exams.html';
+        return;
+      }
+
+      const res = await apiRequest(`/results/${resultId}`);
+
+      if (!res.ok || !res.data.success) {
+        showToast(res.data.message || 'Không thể xem kết quả bài thi!', 'error');
+        setTimeout(() => { window.location.href = 'exams.html'; }, 1000);
+        return;
+      }
+
+      const { summary, details } = res.data.data;
+
+      document.getElementById('res-exam-title').innerText = summary.exam_title;
+      document.getElementById('res-submit-time').innerText = `Nộp bài: ${new Date(summary.submitted_at).toLocaleString('vi-VN')} | Thí sinh: ${summary.username}`;
+      document.getElementById('res-score').innerText = summary.score;
+      document.getElementById('res-correct').innerText = `${summary.correct_answers} / ${summary.total_questions}`;
+      document.getElementById('res-wrong').innerText = summary.total_questions - summary.correct_answers;
+
+      const percent = Math.round((summary.correct_answers / summary.total_questions) * 100);
+      document.getElementById('res-percent').innerText = `${percent}%`;
+
+      const reviewContainer = document.getElementById('review-list');
+      reviewContainer.innerHTML = details.map((d, idx) => {
+        const isCorrect = d.is_correct;
+        const qType = d.question_type || 'SINGLE_CHOICE';
+        const meta = typeMeta[qType] || { title: qType, color: 'var(--text-muted)' };
+
+        let answerReviewHtml = '';
+
+        if (qType === 'SINGLE_CHOICE' || qType === 'TRUE_FALSE') {
+          answerReviewHtml = d.all_options.map((opt, optIdx) => {
+            let extraClass = '';
+            let badge = '';
+
+            if (opt.is_correct) {
+              extraClass = 'correct';
+              badge = '<span style="margin-left: auto; font-size: 0.75rem; color: var(--success); font-weight: 600;">[Đáp án đúng]</span>';
+            } else if (opt.id === d.selected_answer_id) {
+              extraClass = 'wrong-selected';
+              badge = '<span style="margin-left: auto; font-size: 0.75rem; color: var(--danger); font-weight: 600;">[Đã chọn]</span>';
+            }
+
+            return `
+              <div class="review-option ${extraClass}">
+                <span class="option-letter">${alphabet[optIdx] || optIdx + 1}</span>
+                <span>${escapeHtml(opt.content)}</span>
+                ${badge}
+              </div>
+            `;
+          }).join('');
+        } 
+        else if (qType === 'MULTIPLE_CHOICE') {
+          let userSelectedIds = [];
+          try {
+            userSelectedIds = JSON.parse(d.user_answer_text || '[]');
+          } catch (e) {}
+
+          answerReviewHtml = d.all_options.map((opt, optIdx) => {
+            const isUserSelected = userSelectedIds.includes(opt.id);
+            let extraClass = '';
+            let badge = '';
+
+            if (opt.is_correct && isUserSelected) {
+              extraClass = 'correct';
+              badge = '<span style="margin-left: auto; font-size: 0.75rem; color: var(--success); font-weight: 600;">[Đúng - Đã chọn]</span>';
+            } else if (opt.is_correct && !isUserSelected) {
+              extraClass = 'correct';
+              badge = '<span style="margin-left: auto; font-size: 0.75rem; color: var(--success); font-weight: 600;">[Đáp án đúng - Bỏ sót]</span>';
+            } else if (!opt.is_correct && isUserSelected) {
+              extraClass = 'wrong-selected';
+              badge = '<span style="margin-left: auto; font-size: 0.75rem; color: var(--danger); font-weight: 600;">[Chọn sai]</span>';
+            }
+
+            return `
+              <div class="review-option ${extraClass}">
+                <span class="option-letter" style="${isUserSelected ? 'background: #8b5cf6; color: white;' : ''}">
+                  ${isUserSelected ? '&#10003;' : (alphabet[optIdx] || optIdx + 1)}
+                </span>
+                <span>${escapeHtml(opt.content)}</span>
+                ${badge}
+              </div>
+            `;
+          }).join('');
+        } 
+        else if (qType === 'FILL_BLANK') {
+          const userText = d.user_answer_text || '(Để trống)';
+          const acceptedTexts = d.all_options.map(o => o.content).join(', ');
+
+          answerReviewHtml = `
+            <div style="font-size: 0.9rem; padding: 0.75rem; border-radius: var(--radius-sm); background: var(--bg-muted); border: 1px solid var(--border);">
+              <div style="margin-bottom: 0.4rem;">
+                <span style="color: var(--text-muted);">Câu trả lời của bạn:</span>
+                <strong style="color: ${isCorrect ? 'var(--success)' : 'var(--danger)'}; margin-left: 0.35rem;">
+                  ${escapeHtml(userText)}
+                </strong>
+              </div>
+              <div>
+                <span style="color: var(--text-muted);">Các đáp án được chấp nhận:</span>
+                <strong style="color: var(--success); margin-left: 0.35rem;">
+                  ${escapeHtml(acceptedTexts)}
+                </strong>
+              </div>
+            </div>
+          `;
+        } 
+        else if (qType === 'CLASSIFICATION') {
+          let userClassification = {};
+          try {
+            userClassification = JSON.parse(d.user_answer_text || '{}');
+          } catch (e) {}
+
+          const tableRows = d.all_options.map(opt => {
+            const userChosen = userClassification[opt.id] || '(Chưa chọn)';
+            const correctTarget = opt.match_target || '';
+            const isItemCorrect = (userChosen.trim().toLowerCase() === correctTarget.trim().toLowerCase());
+
+            return `
+              <tr>
+                <td style="font-weight: 600; width: 40%;">${escapeHtml(opt.content)}</td>
+                <td style="color: ${isItemCorrect ? 'var(--success)' : 'var(--danger)'}; font-weight: 600;">
+                  ${escapeHtml(userChosen)}
+                </td>
+                <td style="color: var(--success); font-weight: 600;">
+                  ${escapeHtml(correctTarget)}
+                </td>
+              </tr>
+            `;
+          }).join('');
+
+          answerReviewHtml = `
+            <table class="classification-review-table">
+              <thead>
+                <tr>
+                  <th>Mục / Khái niệm</th>
+                  <th>Bạn đã xếp vào</th>
+                  <th>Đáp án chuẩn</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tableRows}
+              </tbody>
+            </table>
+          `;
+        }
+
+        return `
+          <div class="card" style="border-left: 4px solid ${isCorrect ? 'var(--success)' : 'var(--danger)'};">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+                  <span style="font-weight: 600; font-size: 0.9rem; color: var(--text-muted);">Câu ${idx + 1}</span>
+                  <span class="type-badge" style="color: ${meta.color};">${meta.title}</span>
+                </div>
+                <strong style="color: var(--text-main); font-size: 0.95rem;">${escapeHtml(d.question_content)}</strong>
+              </div>
+              <span style="font-size: 0.85rem; font-weight: 700; color: ${isCorrect ? 'var(--success)' : 'var(--danger)'}; flex-shrink: 0;">
+                ${isCorrect ? 'ĐÚNG' : 'SAI'}
+              </span>
+            </div>
+
+            <div style="margin-top: 0.75rem;">
+              ${answerReviewHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('result-loading').style.display = 'none';
+      document.getElementById('result-content').style.display = 'block';
+    });
+  </script>
+</body>
+</html>

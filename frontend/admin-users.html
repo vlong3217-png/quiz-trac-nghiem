@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản lý sinh viên - Hệ thống thi trắc nghiệm</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="admin.html" class="brand-logo">
+        <span>Hệ thống thi trắc nghiệm</span>
+        <span class="brand-badge">Quản trị</span>
+      </a>
+      <ul class="nav-menu" id="navbar-menu">
+        <!-- Rendered via auth.js -->
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container" style="padding: 2rem 1.25rem; flex: 1;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h1 style="font-size: 1.6rem; font-weight: 700;">Quản Lý Tài Khoản Sinh Viên</h1>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Danh sách tài khoản sinh viên trong hệ thống</p>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem;">
+        <input type="text" id="search-student-input" class="form-control" placeholder="Tìm theo tên đăng nhập hoặc email..." style="width: 260px;">
+        <button id="btn-open-create-user" class="btn btn-primary">Thêm sinh viên</button>
+      </div>
+    </div>
+
+    <!-- Table of students -->
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Tên đăng nhập</th>
+              <th>Email</th>
+              <th>Lớp</th>
+              <th>Trường</th>
+              <th>Số bài thi</th>
+              <th>Điểm TB</th>
+              <th style="text-align: right;">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="student-table-body">
+            <tr>
+              <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                Đang tải danh sách sinh viên...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Tạo / Sửa Tài Khoản Sinh Viên -->
+  <div class="modal-overlay" id="user-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="user-modal-title">Thêm Tài Khoản Sinh Viên</h3>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeUserModal()">Đóng</button>
+      </div>
+      <form id="form-user-modal">
+        <div class="modal-body">
+          <input type="hidden" id="modal-user-id">
+
+          <div class="form-group" id="group-username">
+            <label class="form-label" for="user-username-input">Tên đăng nhập *</label>
+            <input type="text" id="user-username-input" class="form-control" placeholder="Ví dụ: sinhvien123" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="user-email-input">Địa chỉ Email *</label>
+            <input type="email" id="user-email-input" class="form-control" placeholder="Ví dụ: sv@quizsystem.vn" required>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <div class="form-group">
+              <label class="form-label" for="user-class-input">Lớp</label>
+              <input type="text" id="user-class-input" class="form-control" placeholder="Ví dụ: D20CNTT01">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="user-school-input">Trường</label>
+              <input type="text" id="user-school-input" class="form-control" placeholder="Ví dụ: ĐH Công Nghệ">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="user-password-input" id="label-password">Mật khẩu *</label>
+            <input type="password" id="user-password-input" class="form-control" placeholder="Tối thiểu 6 ký tự">
+            <small style="color: var(--text-muted); font-size: 0.8rem;" id="hint-password" style="display: none;">Để trống nếu không muốn đổi mật khẩu</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeUserModal()">Hủy</button>
+          <button type="submit" id="btn-save-user" class="btn btn-primary">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Hệ thống thi trắc nghiệm trực tuyến</p>
+    </div>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let studentList = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!Auth.requireAdminRole()) return;
+
+      loadStudents();
+
+      document.getElementById('btn-open-create-user').addEventListener('click', () => {
+        openUserModal();
+      });
+
+      document.getElementById('form-user-modal').addEventListener('submit', handleSaveUser);
+
+      document.getElementById('search-student-input').addEventListener('input', (e) => {
+        const keyword = e.target.value.toLowerCase().trim();
+        const filtered = studentList.filter(s => 
+          s.username.toLowerCase().includes(keyword) || 
+          s.email.toLowerCase().includes(keyword)
+        );
+        renderTable(filtered);
+      });
+    });
+
+    async function loadStudents() {
+      const tbody = document.getElementById('student-table-body');
+      const res = await apiRequest('/users');
+
+      if (!res.ok || !res.data.success) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 1.5rem;">Lỗi tải dữ liệu: ${res.data.message || 'Lỗi kết nối'}</td></tr>`;
+        return;
+      }
+
+      studentList = res.data.data;
+      renderTable(studentList);
+    }
+
+    function renderTable(list) {
+      const tbody = document.getElementById('student-table-body');
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">Không tìm thấy sinh viên nào.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(s => `
+        <tr>
+          <td>#${s.id}</td>
+          <td><strong>${escapeHtml(s.username)}</strong></td>
+          <td>${escapeHtml(s.email)}</td>
+          <td>${escapeHtml(s.class_name || '-')}</td>
+          <td>${escapeHtml(s.school_name || '-')}</td>
+          <td>${s.total_exams_taken || 0} bài</td>
+          <td>
+            <strong style="color: ${s.average_score >= 5 ? 'var(--primary)' : 'var(--danger)'};">
+              ${s.average_score} / 10
+            </strong>
+          </td>
+          <td style="text-align: right;">
+            <button class="btn btn-secondary btn-sm" onclick="editUser(${s.id})">
+              Sửa / Đổi mật khẩu
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="deleteUser(${s.id}, '${escapeHtml(s.username)}')">
+              Xóa
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openUserModal(user = null) {
+      const modal = document.getElementById('user-modal');
+      const title = document.getElementById('user-modal-title');
+      const idInput = document.getElementById('modal-user-id');
+      const usernameInput = document.getElementById('user-username-input');
+      const emailInput = document.getElementById('user-email-input');
+      const classInput = document.getElementById('user-class-input');
+      const schoolInput = document.getElementById('user-school-input');
+      const passwordInput = document.getElementById('user-password-input');
+      const hintPassword = document.getElementById('hint-password');
+      const labelPassword = document.getElementById('label-password');
+
+      if (user) {
+        title.innerText = 'Cập Nhật Sinh Viên: ' + user.username;
+        idInput.value = user.id;
+        usernameInput.value = user.username;
+        usernameInput.disabled = true; // Không cho đổi username
+        emailInput.value = user.email;
+        classInput.value = user.class_name || '';
+        schoolInput.value = user.school_name || '';
+        passwordInput.value = '';
+        passwordInput.required = false;
+        labelPassword.innerText = 'Mật khẩu mới (Nếu cần đổi)';
+        hintPassword.style.display = 'block';
+      } else {
+        title.innerText = 'Thêm Tài Khoản Sinh Viên';
+        idInput.value = '';
+        usernameInput.value = '';
+        usernameInput.disabled = false;
+        emailInput.value = '';
+        classInput.value = '';
+        schoolInput.value = '';
+        passwordInput.value = '';
+        passwordInput.required = true;
+        labelPassword.innerText = 'Mật khẩu *';
+        hintPassword.style.display = 'none';
+      }
+
+      modal.classList.add('active');
+    }
+
+    function closeUserModal() {
+      document.getElementById('user-modal').classList.remove('active');
+    }
+
+    function editUser(id) {
+      const user = studentList.find(s => s.id === id);
+      if (user) openUserModal(user);
+    }
+
+    async function handleSaveUser(e) {
+      e.preventDefault();
+      const id = document.getElementById('modal-user-id').value;
+      const username = document.getElementById('user-username-input').value.trim();
+      const email = document.getElementById('user-email-input').value.trim();
+      const class_name = document.getElementById('user-class-input').value.trim();
+      const school_name = document.getElementById('user-school-input').value.trim();
+      const password = document.getElementById('user-password-input').value;
+
+      const btnSave = document.getElementById('btn-save-user');
+      btnSave.disabled = true;
+
+      let res;
+      if (id) {
+        // Cập nhật PUT
+        res = await apiRequest(`/users/${id}`, 'PUT', { 
+          email, 
+          class_name, 
+          school_name, 
+          password: password || undefined 
+        });
+      } else {
+        // Tạo mới POST
+        res = await apiRequest('/users', 'POST', { 
+          username, 
+          email, 
+          class_name, 
+          school_name, 
+          password 
+        });
+      }
+
+      btnSave.disabled = false;
+
+      if (res.ok && res.data.success) {
+        showToast(res.data.message || 'Lưu thành công!', 'success');
+        closeUserModal();
+        loadStudents();
+      } else {
+        showToast(res.data.message || 'Lỗi khi lưu tài khoản!', 'error');
+      }
+    }
+
+    async function deleteUser(id, username) {
+      if (!confirm(`Bạn có chắc muốn xóa sinh viên [${username}]? Toàn bộ kết quả thi của sinh viên này cũng sẽ bị xóa!`)) {
+        return;
+      }
+
+      const res = await apiRequest(`/users/${id}`, 'DELETE');
+      if (res.ok && res.data.success) {
+        showToast('Đã xóa tài khoản sinh viên!', 'success');
+        loadStudents();
+      } else {
+        showToast(res.data.message || 'Không thể xóa sinh viên!', 'error');
+      }
+    }
+  </script>
+</body>
+</html>

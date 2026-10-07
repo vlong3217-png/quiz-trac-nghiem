@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng ký tài khoản - Hệ thống thi trắc nghiệm</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="login.html" class="brand-logo">
+        <span>Hệ thống thi trắc nghiệm</span>
+      </a>
+      <ul class="nav-menu" id="navbar-menu">
+        <!-- Rendered via auth.js -->
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Register Form Wrapper -->
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-header">
+        <h2>Đăng Ký Tài Khoản</h2>
+        <p>Tạo tài khoản học viên</p>
+      </div>
+
+      <form id="form-register">
+        <div class="form-group">
+          <label class="form-label" for="reg-username">Tên đăng nhập</label>
+          <input type="text" id="reg-username" class="form-control" placeholder="Tên đăng nhập" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-email">Email</label>
+          <input type="email" id="reg-email" class="form-control" placeholder="Địa chỉ email" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-password">Mật khẩu</label>
+          <input type="password" id="reg-password" class="form-control" placeholder="Tối thiểu 6 ký tự" minlength="6" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-confirm-password">Xác nhận mật khẩu</label>
+          <input type="password" id="reg-confirm-password" class="form-control" placeholder="Nhập lại mật khẩu" required>
+        </div>
+
+        <button type="submit" id="btn-submit-register" class="btn btn-primary btn-block" style="margin-top: 1.25rem;">
+          Đăng ký
+        </button>
+      </form>
+
+      <div style="margin-top: 1.25rem; text-align: center; font-size: 0.875rem; color: var(--text-muted);">
+        Đã có tài khoản? <a href="login.html" style="color: var(--primary); font-weight: 500; text-decoration: none;">Đăng nhập</a>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Hệ thống thi trắc nghiệm trực tuyến</p>
+    </div>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (Auth.isLoggedIn()) {
+        const user = Auth.getUser();
+        window.location.href = (user && user.role === 'ADMIN') ? 'admin.html' : 'exams.html';
+        return;
+      }
+
+      const form = document.getElementById('form-register');
+      const btnSubmit = document.getElementById('btn-submit-register');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('reg-username').value.trim();
+        const email = document.getElementById('reg-email').value.trim();
+        const password = document.getElementById('reg-password').value;
+        const confirmPassword = document.getElementById('reg-confirm-password').value;
+
+        if (!username || !email || !password) {
+          showToast('Vui lòng điền đủ các trường!', 'error');
+          return;
+        }
+
+        if (password.length < 6) {
+          showToast('Mật khẩu phải từ 6 ký tự trở lên!', 'error');
+          return;
+        }
+
+        if (password !== confirmPassword) {
+          showToast('Mật khẩu xác nhận không khớp!', 'error');
+          return;
+        }
+
+        btnSubmit.disabled = true;
+        btnSubmit.innerText = 'Đang xử lý...';
+
+        const res = await apiRequest('/auth/register', 'POST', { username, email, password });
+
+        btnSubmit.disabled = false;
+        btnSubmit.innerText = 'Đăng ký';
+
+        if (res.ok && res.data.success) {
+          Auth.setAuth(res.data.data.token, res.data.data.user);
+          showToast('Đăng ký thành công!', 'success');
+          setTimeout(() => {
+            window.location.href = 'exams.html';
+          }, 600);
+        } else {
+          showToast(res.data.message || 'Đăng ký thất bại!', 'error');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản lý câu hỏi - Hệ thống thi trắc nghiệm</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="admin.html" class="brand-logo">
+        <span>Hệ thống thi trắc nghiệm</span>
+        <span class="brand-badge">Quản trị</span>
+      </a>
+      <ul class="nav-menu" id="navbar-menu">
+        <!-- Rendered via auth.js -->
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container" style="padding: 2rem 1.25rem; flex: 1;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <a href="admin-exams.html" style="text-decoration: none; color: var(--text-muted); font-size: 0.85rem;">&larr; Quay lại danh sách đề thi</a>
+        <h1 style="font-size: 1.75rem; font-weight: 700; margin-top: 0.35rem;" id="page-title">Quản Lý Câu Hỏi</h1>
+        <p style="color: var(--text-muted); font-size: 0.9rem;" id="exam-subtitle">Đang tải thông tin đề thi...</p>
+      </div>
+      <div>
+        <button id="btn-add-question" class="btn btn-primary">Thêm câu hỏi</button>
+      </div>
+    </div>
+
+    <!-- Questions list container -->
+    <div id="questions-list" style="display: flex; flex-direction: column; gap: 1rem;">
+      <div style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+        Đang tải danh sách câu hỏi...
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Thêm / Sửa Câu Hỏi -->
+  <div class="modal-overlay" id="question-modal">
+    <div class="modal-dialog" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="q-modal-title">Thêm Câu Hỏi Mới</h3>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeQuestionModal()">Đóng</button>
+      </div>
+      <form id="form-question">
+        <div class="modal-body">
+          <input type="hidden" id="edit-question-id">
+
+          <div class="form-group">
+            <label class="form-label" for="q-type">Loại câu hỏi *</label>
+            <select id="q-type" class="form-control" onchange="renderAnswerInputsByType()">
+              <option value="SINGLE_CHOICE">1. Trắc nghiệm 1 đáp án đúng (Single Choice)</option>
+              <option value="MULTIPLE_CHOICE">2. Chọn nhiều đáp án đúng (Multiple Choice)</option>
+              <option value="TRUE_FALSE">3. Đúng / Sai (True / False)</option>
+              <option value="FILL_BLANK">4. Điền vào chỗ trống (Fill in the Blank)</option>
+              <option value="CLASSIFICATION">5. Phân loại vào nhóm (Classification)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="q-content">Nội dung câu hỏi *</label>
+            <textarea id="q-content" class="form-control" placeholder="Nhập câu hỏi..." required rows="3"></textarea>
+          </div>
+
+          <!-- Dynamic Answers Container -->
+          <div id="dynamic-answers-area" style="margin-top: 1.25rem;">
+            <!-- Rendered by JS according to selected question type -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeQuestionModal()">Hủy</button>
+          <button type="submit" id="btn-save-question" class="btn btn-primary">Lưu câu hỏi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Hệ thống thi trắc nghiệm trực tuyến</p>
+    </div>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let currentExamId = null;
+    let questionsList = [];
+    const alphabet = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+    const typeLabels = {
+      'SINGLE_CHOICE': { text: 'Trắc nghiệm 1 đáp án', color: 'var(--primary)' },
+      'MULTIPLE_CHOICE': { text: 'Chọn nhiều đáp án', color: '#8b5cf6' },
+      'TRUE_FALSE': { text: 'Đúng / Sai', color: '#f59e0b' },
+      'FILL_BLANK': { text: 'Điền từ khuyết', color: '#10b981' },
+      'CLASSIFICATION': { text: 'Phân loại nhóm', color: '#06b6d4' }
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!Auth.requireAdminRole()) return;
+
+      const urlParams = new URLSearchParams(window.location.search);
+      currentExamId = urlParams.get('exam_id');
+
+      if (!currentExamId) {
+        showToast('Thiếu mã đề thi!', 'error');
+        window.location.href = 'admin-exams.html';
+        return;
+      }
+
+      loadExamAndQuestions();
+
+      document.getElementById('btn-add-question').addEventListener('click', () => {
+        openQuestionModal();
+      });
+
+      document.getElementById('form-question').addEventListener('submit', handleSaveQuestion);
+    });
+
+    async function loadExamAndQuestions() {
+      const listContainer = document.getElementById('questions-list');
+      const res = await apiRequest(`/exams/${currentExamId}/questions`);
+
+      if (!res.ok || !res.data.success) {
+        listContainer.innerHTML = `<p style="color: var(--danger); text-align: center;">Lỗi tải dữ liệu: ${escapeHtml(res.data.message || 'Lỗi kết nối')}</p>`;
+        return;
+      }
+
+      const exam = res.data.exam;
+      questionsList = res.data.data;
+
+      document.getElementById('page-title').innerText = `Quản Lý Câu Hỏi: ${exam.title}`;
+      document.getElementById('exam-subtitle').innerText = `Mã đề: #${exam.id} | Thời lượng: ${exam.duration} phút | Tổng: ${questionsList.length} câu hỏi`;
+
+      if (questionsList.length === 0) {
+        listContainer.innerHTML = `
+          <div class="card" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+            <p>Đề thi này chưa có câu hỏi nào.</p>
+            <button class="btn btn-primary btn-sm" style="margin-top: 0.75rem;" onclick="openQuestionModal()">Thêm câu hỏi</button>
+          </div>
+        `;
+        return;
+      }
+
+      listContainer.innerHTML = questionsList.map((q, idx) => {
+        const qType = q.type || 'SINGLE_CHOICE';
+        const typeInfo = typeLabels[qType] || { text: qType, color: 'var(--text-muted)' };
+
+        let answerContentHtml = '';
+
+        if (qType === 'SINGLE_CHOICE' || qType === 'MULTIPLE_CHOICE' || qType === 'TRUE_FALSE') {
+          answerContentHtml = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.5rem; margin-top: 0.5rem;">
+              ${q.answers.map((ans, aIdx) => `
+                <div style="padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid ${ans.is_correct ? 'var(--success)' : 'var(--border)'}; background: ${ans.is_correct ? 'var(--success-light)' : 'var(--bg-main)'}; font-size: 0.85rem;">
+                  <strong style="color: ${ans.is_correct ? 'var(--success)' : 'var(--text-muted)'};">${alphabet[aIdx] || aIdx + 1}.</strong>
+                  ${escapeHtml(ans.content)}
+                  ${ans.is_correct ? '<span style="float: right; color: var(--success); font-weight: 600;">(Đúng)</span>' : ''}
+                </div>
+              `).join('')}
+            </div>
+          `;
+        } else if (qType === 'FILL_BLANK') {
+          const acceptedWords = q.answers.map(a => `<span class="badge" style="background: var(--success-light); color: var(--success); margin-right: 0.35rem; font-size: 0.85rem;">${escapeHtml(a.content)}</span>`).join('');
+          answerContentHtml = `
+            <div style="margin-top: 0.5rem; font-size: 0.875rem;">
+              <span style="color: var(--text-muted);">Các từ khóa chấp nhận đáp án đúng:</span>
+              <div style="margin-top: 0.35rem;">${acceptedWords}</div>
+            </div>
+          `;
+        } else if (qType === 'CLASSIFICATION') {
+          answerContentHtml = `
+            <div style="margin-top: 0.5rem; font-size: 0.875rem;">
+              <div style="color: var(--text-muted); margin-bottom: 0.35rem;">Phân loại các mục vào nhóm:</div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.5rem;">
+                ${q.answers.map(ans => `
+                  <div style="padding: 0.45rem 0.65rem; border-radius: var(--radius-sm); background: var(--bg-muted); border: 1px solid var(--border); font-size: 0.85rem;">
+                    <strong>${escapeHtml(ans.content)}</strong> &rarr; <span style="color: var(--primary); font-weight: 600;">[${escapeHtml(ans.match_target || 'Chưa gán')}]</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                  <span style="font-weight: 600; color: var(--primary); font-size: 0.9rem;">Câu ${idx + 1}:</span>
+                  <span style="font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 4px; background: var(--bg-muted); border: 1px solid var(--border); color: ${typeInfo.color}; font-weight: 600;">
+                    ${typeInfo.text}
+                  </span>
+                </div>
+                <strong style="font-size: 0.95rem;">${escapeHtml(q.content)}</strong>
+              </div>
+              <div style="display: flex; gap: 0.4rem; flex-shrink: 0;">
+                <button class="btn btn-secondary btn-sm" onclick="editQuestion(${q.id})">Sửa</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteQuestion(${q.id})">Xóa</button>
+              </div>
+            </div>
+            ${answerContentHtml}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAnswerInputsByType(q = null) {
+      const type = document.getElementById('q-type').value;
+      const area = document.getElementById('dynamic-answers-area');
+
+      if (type === 'SINGLE_CHOICE') {
+        const answers = q && q.answers ? q.answers : [
+          { content: '', is_correct: true },
+          { content: '', is_correct: false },
+          { content: '', is_correct: false },
+          { content: '', is_correct: false }
+        ];
+        area.innerHTML = `
+          <label class="form-label">Các lựa chọn (Tích chọn nút tròn cho đáp án ĐÚNG):</label>
+          ${[0, 1, 2, 3].map(i => {
+            const val = answers[i] ? answers[i].content : '';
+            const checked = answers[i] && answers[i].is_correct ? 'checked' : (i === 0 ? 'checked' : '');
+            return `
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <input type="radio" name="single_choice_correct" value="${i}" ${checked} style="width: 18px; height: 18px;">
+                <span style="font-weight: 600; width: 20px;">${alphabet[i]}:</span>
+                <input type="text" class="form-control" id="single-opt-${i}" value="${escapeHtml(val)}" placeholder="Đáp án ${alphabet[i]}" required>
+              </div>
+            `;
+          }).join('')}
+        `;
+      } 
+      else if (type === 'MULTIPLE_CHOICE') {
+        const answers = q && q.answers ? q.answers : [
+          { content: '', is_correct: true },
+          { content: '', is_correct: true },
+          { content: '', is_correct: false },
+          { content: '', is_correct: false }
+        ];
+        area.innerHTML = `
+          <label class="form-label">Các lựa chọn (Tích chọn ô vuông cho các đáp án ĐÚNG - từ 2 đáp án):</label>
+          ${[0, 1, 2, 3].map(i => {
+            const val = answers[i] ? answers[i].content : '';
+            const checked = answers[i] && answers[i].is_correct ? 'checked' : '';
+            return `
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <input type="checkbox" id="multi-check-${i}" ${checked} style="width: 18px; height: 18px;">
+                <span style="font-weight: 600; width: 20px;">${alphabet[i]}:</span>
+                <input type="text" class="form-control" id="multi-opt-${i}" value="${escapeHtml(val)}" placeholder="Đáp án ${alphabet[i]}" required>
+              </div>
+            `;
+          }).join('')}
+        `;
+      } 
+      else if (type === 'TRUE_FALSE') {
+        let isTrueCorrect = true;
+        if (q && q.answers && q.answers.length > 0) {
+          const trueAns = q.answers.find(a => a.content.toLowerCase() === 'đúng' || a.content.toLowerCase() === 'true');
+          if (trueAns) isTrueCorrect = Boolean(trueAns.is_correct);
+        }
+        area.innerHTML = `
+          <label class="form-label">Chọn mệnh đề ĐÚNG hay SAI:</label>
+          <div style="display: flex; gap: 1.5rem; margin-top: 0.5rem; padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-muted);">
+            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+              <input type="radio" name="tf_correct" value="true" ${isTrueCorrect ? 'checked' : ''} style="width: 18px; height: 18px;">
+              <span style="font-weight: 600; color: var(--success);">Đúng (True)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+              <input type="radio" name="tf_correct" value="false" ${!isTrueCorrect ? 'checked' : ''} style="width: 18px; height: 18px;">
+              <span style="font-weight: 600; color: var(--danger);">Sai (False)</span>
+            </label>
+          </div>
+        `;
+      } 
+      else if (type === 'FILL_BLANK') {
+        const words = q && q.answers ? q.answers.map(a => a.content).join(', ') : '';
+        area.innerHTML = `
+          <label class="form-label">Từ / cụm từ đáp án chính xác (người làm bài điền vào):</label>
+          <input type="text" class="form-control" id="fill-keywords" value="${escapeHtml(words)}" placeholder="Ví dụ: HTTP, https, Hypertext Transfer Protocol" required>
+          <small style="color: var(--text-muted); display: block; margin-top: 0.35rem;">
+            * Có thể nhập nhiều phương án tương đương cách nhau bởi dấu phẩy (,). Hệ thống sẽ không phân biệt hoa thường khi chấm.
+          </small>
+        `;
+      } 
+      else if (type === 'CLASSIFICATION') {
+        const items = q && q.answers && q.answers.length > 0 ? q.answers : [
+          { content: 'TCP', match_target: 'Transport Layer' },
+          { content: 'UDP', match_target: 'Transport Layer' },
+          { content: 'IP', match_target: 'Network Layer' },
+          { content: 'ICMP', match_target: 'Network Layer' }
+        ];
+
+        let rowsHtml = items.map((it, idx) => `
+          <div class="class-row" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center;">
+            <input type="text" class="form-control class-item" value="${escapeHtml(it.content)}" placeholder="Mục / khái niệm (ví dụ: TCP)" required style="flex: 1;">
+            <span style="color: var(--text-muted); font-weight: 600;">&rarr; Nhóm:</span>
+            <input type="text" class="form-control class-target" value="${escapeHtml(it.match_target || '')}" placeholder="Tên nhóm (ví dụ: Lớp Truyền vận)" required style="flex: 1;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()" style="padding: 0.35rem 0.6rem; color: var(--danger);">&times;</button>
+          </div>
+        `).join('');
+
+        area.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <label class="form-label" style="margin: 0;">Danh sách mục & Nhóm tương ứng:</label>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="addClassificationRow()">+ Thêm mục</button>
+          </div>
+          <div id="classification-rows-box">${rowsHtml}</div>
+          <small style="color: var(--text-muted); display: block; margin-top: 0.35rem;">
+            * Thí sinh sẽ nhìn thấy danh sách các nhóm và phải phân loại chính xác từng mục vào nhóm đó.
+          </small>
+        `;
+      }
+    }
+
+    function addClassificationRow() {
+      const box = document.getElementById('classification-rows-box');
+      if (!box) return;
+      const div = document.createElement('div');
+      div.className = 'class-row';
+      div.style.cssText = 'display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center;';
+      div.innerHTML = `
+        <input type="text" class="form-control class-item" placeholder="Mục / khái niệm" required style="flex: 1;">
+        <span style="color: var(--text-muted); font-weight: 600;">&rarr; Nhóm:</span>
+        <input type="text" class="form-control class-target" placeholder="Tên nhóm phân loại" required style="flex: 1;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()" style="padding: 0.35rem 0.6rem; color: var(--danger);">&times;</button>
+      `;
+      box.appendChild(div);
+    }
+
+    function openQuestionModal(q = null) {
+      const modal = document.getElementById('question-modal');
+      const title = document.getElementById('q-modal-title');
+      const idInput = document.getElementById('edit-question-id');
+      const contentInput = document.getElementById('q-content');
+      const typeSelect = document.getElementById('q-type');
+
+      if (q) {
+        title.innerText = 'Chỉnh Sửa Câu Hỏi #' + q.id;
+        idInput.value = q.id;
+        contentInput.value = q.content;
+        typeSelect.value = q.type || 'SINGLE_CHOICE';
+        renderAnswerInputsByType(q);
+      } else {
+        title.innerText = 'Thêm Câu Hỏi Mới';
+        idInput.value = '';
+        contentInput.value = '';
+        typeSelect.value = 'SINGLE_CHOICE';
+        renderAnswerInputsByType(null);
+      }
+
+      modal.classList.add('active');
+    }
+
+    function closeQuestionModal() {
+      document.getElementById('question-modal').classList.remove('active');
+    }
+
+    function editQuestion(id) {
+      const q = questionsList.find(item => item.id === id);
+      if (q) openQuestionModal(q);
+    }
+
+    async function handleSaveQuestion(e) {
+      e.preventDefault();
+      const id = document.getElementById('edit-question-id').value;
+      const content = document.getElementById('q-content').value.trim();
+      const type = document.getElementById('q-type').value;
+
+      let answers = [];
+
+      if (type === 'SINGLE_CHOICE') {
+        const checkedRadio = document.querySelector('input[name="single_choice_correct"]:checked');
+        const correctIndex = checkedRadio ? parseInt(checkedRadio.value, 10) : 0;
+        answers = [0, 1, 2, 3].map(i => ({
+          content: document.getElementById(`single-opt-${i}`).value.trim(),
+          is_correct: correctIndex === i
+        }));
+      } 
+      else if (type === 'MULTIPLE_CHOICE') {
+        answers = [0, 1, 2, 3].map(i => ({
+          content: document.getElementById(`multi-opt-${i}`).value.trim(),
+          is_correct: document.getElementById(`multi-check-${i}`).checked
+        }));
+        const correctCount = answers.filter(a => a.is_correct).length;
+        if (correctCount === 0) {
+          showToast('Vui lòng chọn ít nhất 1 đáp án đúng cho câu hỏi chọn nhiều!', 'error');
+          return;
+        }
+      } 
+      else if (type === 'TRUE_FALSE') {
+        const isTrueCorrect = document.querySelector('input[name="tf_correct"]:checked').value === 'true';
+        answers = [
+          { content: 'Đúng', is_correct: isTrueCorrect },
+          { content: 'Sai', is_correct: !isTrueCorrect }
+        ];
+      } 
+      else if (type === 'FILL_BLANK') {
+        const rawKeywords = document.getElementById('fill-keywords').value.trim();
+        const parts = rawKeywords.split(',').map(s => s.trim()).filter(Boolean);
+        if (parts.length === 0) {
+          showToast('Vui lòng nhập ít nhất một đáp án đúng!', 'error');
+          return;
+        }
+        answers = parts.map(kw => ({
+          content: kw,
+          is_correct: true
+        }));
+      } 
+      else if (type === 'CLASSIFICATION') {
+        const rows = document.querySelectorAll('#classification-rows-box .class-row');
+        if (rows.length === 0) {
+          showToast('Vui lòng thêm ít nhất một mục phân loại!', 'error');
+          return;
+        }
+        rows.forEach(r => {
+          const itemVal = r.querySelector('.class-item').value.trim();
+          const targetVal = r.querySelector('.class-target').value.trim();
+          if (itemVal && targetVal) {
+            answers.push({
+              content: itemVal,
+              match_target: targetVal,
+              is_correct: true
+            });
+          }
+        });
+        if (answers.length === 0) {
+          showToast('Nội dung mục hoặc tên nhóm không được để trống!', 'error');
+          return;
+        }
+      }
+
+      const btnSave = document.getElementById('btn-save-question');
+      btnSave.disabled = true;
+
+      let res;
+      if (id) {
+        res = await apiRequest(`/questions/${id}`, 'PUT', { content, type, answers });
+      } else {
+        res = await apiRequest('/questions', 'POST', {
+          exam_id: currentExamId,
+          content,
+          type,
+          answers
+        });
+      }
+
+      btnSave.disabled = false;
+
+      if (res.ok && res.data.success) {
+        showToast('Lưu câu hỏi thành công!', 'success');
+        closeQuestionModal();
+        loadExamAndQuestions();
+      } else {
+        showToast(res.data.message || 'Lỗi khi lưu câu hỏi!', 'error');
+      }
+    }
+
+    async function deleteQuestion(id) {
+      if (!confirm(`Bạn có chắc chắn muốn xóa câu hỏi #${id}?`)) return;
+
+      const res = await apiRequest(`/questions/${id}`, 'DELETE');
+      if (res.ok && res.data.success) {
+        showToast('Đã xóa câu hỏi!', 'success');
+        loadExamAndQuestions();
+      } else {
+        showToast(res.data.message || 'Không thể xóa câu hỏi!', 'error');
+      }
+    }
+  </script>
+</body>
+</html>

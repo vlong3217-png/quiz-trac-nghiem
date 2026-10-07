@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Danh sách đề thi - Hệ thống thi trắc nghiệm</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="exams.html" class="brand-logo">
+        <span>Hệ thống thi trắc nghiệm</span>
+      </a>
+      <ul class="nav-menu" id="navbar-menu">
+        <!-- Rendered via auth.js -->
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container" style="padding: 2rem 1.25rem; flex: 1;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+      <div>
+        <h1 style="font-size: 1.75rem; font-weight: 700;">Danh Sách Đề Thi</h1>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Lựa chọn đề thi để bắt đầu làm bài</p>
+      </div>
+
+      <div>
+        <input type="text" id="search-input" class="form-control" placeholder="Tìm kiếm tên đề thi..." style="width: 250px;">
+      </div>
+    </div>
+
+    <!-- Exam list cards -->
+    <div class="exam-grid" id="exam-list">
+      <div style="text-align: center; grid-column: 1/-1; padding: 2.5rem; color: var(--text-muted);">
+        Đang tải dữ liệu đề thi...
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Hệ thống thi trắc nghiệm trực tuyến</p>
+    </div>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let allExams = [];
+
+    async function loadExams() {
+      const container = document.getElementById('exam-list');
+      const res = await apiRequest('/exams');
+
+      if (!res.ok || !res.data.success) {
+        container.innerHTML = `<p style="color: var(--danger); text-align: center; grid-column: 1/-1;">Không thể tải danh sách đề thi: ${escapeHtml(res.data.message || 'Lỗi kết nối')}</p>`;
+        return;
+      }
+
+      allExams = res.data.data;
+      renderExams(allExams);
+    }
+
+    function renderExams(exams) {
+      const container = document.getElementById('exam-list');
+      if (exams.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted); text-align: center; grid-column: 1/-1; padding: 2rem;">Không tìm thấy đề thi phù hợp.</p>';
+        return;
+      }
+
+      container.innerHTML = exams.map(exam => `
+        <div class="exam-card">
+          <div>
+            <h3 class="card-title">${escapeHtml(exam.title)}</h3>
+            <p class="card-subtitle" style="min-height: 42px;">${escapeHtml(exam.description || 'Không có mô tả.')}</p>
+          </div>
+          <div>
+            <div class="exam-meta">
+              <span class="meta-item">Thời lượng: ${exam.duration} phút</span>
+              <span class="meta-item">Số câu: ${exam.total_questions || 0}</span>
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+              <a href="exam-detail.html?id=${exam.id}" class="btn btn-secondary btn-sm" style="flex: 1;">Chi tiết</a>
+              <a href="quiz.html?id=${exam.id}" class="btn btn-primary btn-sm" style="flex: 1.2;">Vào thi</a>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      const keyword = e.target.value.toLowerCase().trim();
+      const filtered = allExams.filter(ex => 
+        ex.title.toLowerCase().includes(keyword) || 
+        (ex.description && ex.description.toLowerCase().includes(keyword))
+      );
+      renderExams(filtered);
+    });
+
+    document.addEventListener('DOMContentLoaded', loadExams);
+  </script>
+</body>
+</html>

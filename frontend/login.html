@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng nhập - Hệ thống thi trắc nghiệm</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="login.html" class="brand-logo">
+        <span>Hệ thống thi trắc nghiệm</span>
+      </a>
+      <ul class="nav-menu" id="navbar-menu">
+        <!-- Rendered via auth.js -->
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Login Form Wrapper -->
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-header">
+        <h2>Đăng Nhập</h2>
+        <p>Hệ thống thi trắc nghiệm trực tuyến</p>
+      </div>
+
+      <form id="form-login">
+        <div class="form-group">
+          <label class="form-label" for="login-username">Tên đăng nhập hoặc Email</label>
+          <input type="text" id="login-username" class="form-control" placeholder="Tên đăng nhập hoặc email" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="login-password">Mật khẩu</label>
+          <input type="password" id="login-password" class="form-control" placeholder="Mật khẩu" required>
+        </div>
+
+        <button type="submit" id="btn-submit-login" class="btn btn-primary btn-block" style="margin-top: 1.25rem;">
+          Đăng nhập
+        </button>
+      </form>
+
+      <div style="margin-top: 1.25rem; text-align: center; font-size: 0.875rem; color: var(--text-muted);">
+        Chưa có tài khoản? <a href="register.html" style="color: var(--primary); font-weight: 500; text-decoration: none;">Đăng ký</a>
+      </div>
+
+      <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--text-muted); background: var(--bg-muted); border-radius: var(--radius-sm); padding: 0.65rem;">
+        <p><strong>Tài khoản thử nghiệm:</strong></p>
+        <p>Admin: <code>admin</code> / <code>admin123</code></p>
+        <p>Học viên: <code>sinhvien</code> / <code>user123</code></p>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Hệ thống thi trắc nghiệm trực tuyến</p>
+    </div>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (Auth.isLoggedIn()) {
+        const user = Auth.getUser();
+        window.location.href = (user && user.role === 'ADMIN') ? 'admin.html' : 'exams.html';
+        return;
+      }
+
+      const form = document.getElementById('form-login');
+      const btnSubmit = document.getElementById('btn-submit-login');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-password').value;
+
+        if (!username || !password) {
+          showToast('Vui lòng điền tài khoản và mật khẩu!', 'error');
+          return;
+        }
+
+        btnSubmit.disabled = true;
+        btnSubmit.innerText = 'Đang xử lý...';
+
+        const res = await apiRequest('/auth/login', 'POST', { username, password });
+
+        btnSubmit.disabled = false;
+        btnSubmit.innerText = 'Đăng nhập';
+
+        if (res.ok && res.data.success) {
+          Auth.setAuth(res.data.data.token, res.data.data.user);
+          showToast('Đăng nhập thành công!', 'success');
+          setTimeout(() => {
+            if (res.data.data.user.role === 'ADMIN') {
+              window.location.href = 'admin.html';
+            } else {
+              window.location.href = 'exams.html';
+            }
+          }, 500);
+        } else {
+          showToast(res.data.message || 'Đăng nhập thất bại!', 'error');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

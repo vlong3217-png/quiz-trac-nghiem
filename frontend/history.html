@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lịch sử làm bài - Hệ thống thi trắc nghiệm</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="exams.html" class="brand-logo">
+        <span>Hệ thống thi trắc nghiệm</span>
+      </a>
+      <ul class="nav-menu" id="navbar-menu">
+        <!-- Rendered via auth.js -->
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container" style="padding: 2rem 1.25rem; flex: 1;">
+    <div style="margin-bottom: 1.5rem;">
+      <h1 style="font-size: 1.75rem; font-weight: 700;">Lịch Sử Làm Bài</h1>
+      <p style="color: var(--text-muted); font-size: 0.95rem;">Danh sách các bài thi bạn đã hoàn thành</p>
+    </div>
+
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Mã kết quả</th>
+              <th>Đề thi</th>
+              <th>Điểm số</th>
+              <th>Số câu đúng</th>
+              <th>Thời gian nộp bài</th>
+              <th>Hành động</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody">
+            <tr>
+              <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                Đang tải dữ liệu lịch sử thi...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Hệ thống thi trắc nghiệm trực tuyến</p>
+    </div>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!Auth.requireAuth()) return;
+
+      const user = Auth.getUser();
+      const tbody = document.getElementById('history-tbody');
+
+      const res = await apiRequest(`/users/${user.id}/results`);
+
+      if (!res.ok || !res.data.success) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 1.5rem;">Lỗi tải lịch sử thi: ${escapeHtml(res.data.message || 'Lỗi server')}</td></tr>`;
+        return;
+      }
+
+      const results = res.data.data;
+
+      if (results.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+              Chưa có bài thi nào được thực hiện.<br><br>
+              <a href="exams.html" class="btn btn-primary btn-sm">Xem danh sách đề thi</a>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = results.map(r => `
+        <tr>
+          <td>#${r.id}</td>
+          <td><strong>${escapeHtml(r.exam_title)}</strong></td>
+          <td>
+            <strong style="color: ${r.score >= 5 ? 'var(--primary)' : 'var(--danger)'};">
+              ${r.score} / 10
+            </strong>
+          </td>
+          <td>${r.correct_answers} / ${r.total_questions}</td>
+          <td>${new Date(r.submitted_at).toLocaleString('vi-VN')}</td>
+          <td>
+            <a href="result.html?id=${r.id}" class="btn btn-secondary btn-sm">Xem chi tiết</a>
+          </td>
+        </tr>
+      `).join('');
+    });
+  </script>
+</body>
+</html>

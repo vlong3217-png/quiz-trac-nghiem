@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tổng quan hệ thống - Hệ thống thi trắc nghiệm</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="admin.html" class="brand-logo">
+        <span>Hệ thống thi trắc nghiệm</span>
+        <span class="brand-badge">Quản trị</span>
+      </a>
+      <ul class="nav-menu" id="navbar-menu">
+        <!-- Rendered via auth.js -->
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container" style="padding: 2rem 1.25rem; flex: 1;">
+    <!-- Page Header -->
+    <div style="margin-bottom: 1.5rem;">
+      <h1 style="font-size: 1.6rem; font-weight: 700;">Tổng Quan Hệ Thống</h1>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">Thống kê hoạt động thi trắc nghiệm trực tuyến</p>
+    </div>
+
+    <!-- Stats summary cards: gọn gàng, rõ ràng -->
+    <div class="stats-grid" id="stats-container">
+      <div class="stat-card">
+        <span class="stat-label">Tổng số sinh viên</span>
+        <span class="stat-value" id="stat-users">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Tổng số đề thi</span>
+        <span class="stat-value" id="stat-exams">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Tổng số câu hỏi</span>
+        <span class="stat-value" id="stat-questions">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Số lượt thi đã nộp</span>
+        <span class="stat-value" id="stat-submissions">0</span>
+      </div>
+    </div>
+
+    <!-- Bảng danh sách bài nộp gần đây (tiết kiệm không gian, tăng tính hữu ích) -->
+    <div style="margin-top: 2rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+        <h2 style="font-size: 1.15rem; font-weight: 600;">Bài thi vừa nộp gần đây</h2>
+        <a href="admin-results.html" class="btn btn-secondary btn-sm">Xem tất cả &rarr;</a>
+      </div>
+
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Mã bài</th>
+                <th>Thí sinh</th>
+                <th>Đề thi</th>
+                <th>Điểm số</th>
+                <th>Số câu đúng</th>
+                <th>Thời gian nộp</th>
+                <th style="text-align: right;">Chi tiết</th>
+              </tr>
+            </thead>
+            <tbody id="recent-results-tbody">
+              <tr>
+                <td colspan="7" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+                  Đang tải dữ liệu gần đây...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Hệ thống thi trắc nghiệm trực tuyến</p>
+    </div>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!Auth.requireAdminRole()) return;
+
+      // 1. Tải số liệu thống kê
+      const resStats = await apiRequest('/results/stats/summary');
+      if (resStats.ok && resStats.data.success) {
+        const stats = resStats.data.data;
+        document.getElementById('stat-users').innerText = stats.total_users || 0;
+        document.getElementById('stat-exams').innerText = stats.total_exams || 0;
+        document.getElementById('stat-questions').innerText = stats.total_questions || 0;
+        document.getElementById('stat-submissions').innerText = stats.total_submissions || 0;
+      }
+
+      // 2. Tải bài nộp gần nhất
+      const resResults = await apiRequest('/results');
+      const tbody = document.getElementById('recent-results-tbody');
+      if (resResults.ok && resResults.data.success) {
+        const list = resResults.data.data.slice(0, 5); // 5 bài nộp mới nhất
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">Chưa có lượt nộp bài nào.</td></tr>';
+        } else {
+          tbody.innerHTML = list.map(r => `
+            <tr>
+              <td>#${r.id}</td>
+              <td><strong>${escapeHtml(r.username)}</strong></td>
+              <td>${escapeHtml(r.exam_title)}</td>
+              <td>
+                <strong style="color: ${r.score >= 5 ? 'var(--primary)' : 'var(--danger)'};">
+                  ${r.score} / 10
+                </strong>
+              </td>
+              <td>${r.correct_answers} / ${r.total_questions}</td>
+              <td>${new Date(r.submitted_at).toLocaleString('vi-VN')}</td>
+              <td style="text-align: right;">
+                <a href="result.html?id=${r.id}" class="btn btn-secondary btn-sm">Xem bài</a>
+              </td>
+            </tr>
+          `).join('');
+        }
+      } else {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 1rem;">Lỗi tải dữ liệu</td></tr>';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Làm bài thi - Hệ thống thi trắc nghiệm</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Styling for enhanced question types in quiz */
+    .classification-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .classification-table th, .classification-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 0.9rem;
+    }
+    .classification-table th {
+      background: var(--bg-muted);
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .classification-table tr:last-child td {
+      border-bottom: none;
+    }
+    .badge-qtype {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--bg-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="exams.html" class="brand-logo">
+        <span>Hệ thống thi trắc nghiệm</span>
+      </a>
+      <div id="quiz-header-info" style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">
+        <!-- Tên đề thi -->
+      </div>
+    </div>
+  </nav>
+
+  <!-- Quiz Interface Container -->
+  <div class="container" style="flex: 1;">
+    <div id="quiz-loading" style="text-align: center; padding: 3.5rem; color: var(--text-muted);">
+      <div style="font-size: 1.25rem; margin-bottom: 0.5rem;">Đang chuẩn bị đề thi...</div>
+      <p>Vui lòng đợi giây lát</p>
+    </div>
+
+    <div id="quiz-content" class="quiz-container" style="display: none;">
+      <!-- Main Question Panel -->
+      <main class="quiz-main">
+        <div class="question-header">
+          <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <span style="font-weight: 600; color: var(--primary); font-size: 1rem;" id="current-question-num">
+              Câu hỏi 1 / 5
+            </span>
+            <span class="badge-qtype" id="question-type-badge">Trắc nghiệm</span>
+          </div>
+          <span style="font-size: 0.8rem; color: var(--text-muted); background: var(--bg-muted); padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border);" id="question-status-tag">
+            Chưa trả lời
+          </span>
+        </div>
+
+        <h2 class="question-title" id="question-text">
+          <!-- Noi dung cau hoi -->
+        </h2>
+
+        <div class="options-list" id="options-container">
+          <!-- Rendered dynamically according to question type -->
+        </div>
+
+        <div class="quiz-actions">
+          <button id="btn-prev-question" class="btn btn-secondary">
+            &larr; Câu trước
+          </button>
+          <div style="display: flex; gap: 0.5rem;">
+            <button id="btn-next-question" class="btn btn-primary">
+              Câu tiếp theo &rarr;
+            </button>
+            <button id="btn-submit-exam" class="btn btn-success">
+              Nộp bài thi
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <!-- Sidebar: Timer & Question Palette -->
+      <aside class="quiz-sidebar">
+        <!-- Timer Box -->
+        <div class="timer-box">
+          <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">THỜI GIAN CÒN LẠI</span>
+          <div class="timer-digits" id="timer-display">00:00</div>
+        </div>
+
+        <!-- Question Navigation Palette -->
+        <div class="question-nav-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+            <strong style="font-size: 0.875rem;">Mục lục câu hỏi</strong>
+            <span style="font-size: 0.75rem; color: var(--text-muted);" id="progress-text">0/0 Đã chọn</span>
+          </div>
+          <div class="question-palette" id="question-palette">
+            <!-- Cac nut so 1, 2, 3... -->
+          </div>
+
+          <div style="margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid var(--border); font-size: 0.75rem; display: flex; gap: 0.75rem; color: var(--text-muted);">
+            <div style="display: flex; align-items: center; gap: 0.35rem;">
+              <span style="width: 10px; height: 10px; background: var(--primary-light); border: 1px solid var(--primary); border-radius: 2px; display: inline-block;"></span>
+              Đã làm
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.35rem;">
+              <span style="width: 10px; height: 10px; background: var(--bg-muted); border: 1px solid var(--border); border-radius: 2px; display: inline-block;"></span>
+              Chưa làm
+            </div>
+          </div>
+
+          <button id="btn-sidebar-submit" class="btn btn-success btn-block" style="margin-top: 1.25rem;">
+            Nộp bài
+          </button>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Hệ thống thi trắc nghiệm trực tuyến</p>
+    </div>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let examData = null;
+    let questions = [];
+    let currentIndex = 0;
+    let userAnswers = {}; // { [question_id]: value }
+    let timerInterval = null;
+    let timeLeftSeconds = 0;
+
+    const alphabet = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+    const typeMeta = {
+      'SINGLE_CHOICE': { title: 'Trắc nghiệm (1 đáp án)', color: 'var(--primary)' },
+      'MULTIPLE_CHOICE': { title: 'Chọn nhiều đáp án', color: '#8b5cf6' },
+      'TRUE_FALSE': { title: 'Đúng / Sai', color: '#f59e0b' },
+      'FILL_BLANK': { title: 'Điền vào chỗ trống', color: '#10b981' },
+      'CLASSIFICATION': { title: 'Phân loại nhóm', color: '#06b6d4' }
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!Auth.requireAuth()) return;
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const examId = urlParams.get('id');
+
+      if (!examId) {
+        showToast('Thiếu mã đề thi!', 'error');
+        window.location.href = 'exams.html';
+        return;
+      }
+
+      const res = await apiRequest(`/exams/${examId}/questions`);
+
+      if (!res.ok || !res.data.success) {
+        showToast(res.data.message || 'Không thể tải câu hỏi của đề thi!', 'error');
+        setTimeout(() => { window.location.href = 'exams.html'; }, 1000);
+        return;
+      }
+
+      examData = res.data.exam;
+      questions = res.data.data;
+
+      if (questions.length === 0) {
+        alert('Đề thi này hiện tại chưa có câu hỏi nào. Vui lòng quay lại sau!');
+        window.location.href = 'exams.html';
+        return;
+      }
+
+      document.getElementById('quiz-header-info').innerText = examData.title;
+      document.getElementById('quiz-loading').style.display = 'none';
+      document.getElementById('quiz-content').style.display = 'grid';
+
+      timeLeftSeconds = (examData.duration || 15) * 60;
+      startTimer();
+
+      renderPalette();
+      renderQuestion(0);
+
+      document.getElementById('btn-prev-question').addEventListener('click', () => {
+        if (currentIndex > 0) renderQuestion(currentIndex - 1);
+      });
+
+      document.getElementById('btn-next-question').addEventListener('click', () => {
+        if (currentIndex < questions.length - 1) renderQuestion(currentIndex + 1);
+      });
+
+      document.getElementById('btn-submit-exam').addEventListener('click', confirmSubmit);
+      document.getElementById('btn-sidebar-submit').addEventListener('click', confirmSubmit);
+    });
+
+    function startTimer() {
+      const timerDisplay = document.getElementById('timer-display');
+      updateTimerDisplay();
+
+      timerInterval = setInterval(() => {
+        timeLeftSeconds--;
+        updateTimerDisplay();
+
+        if (timeLeftSeconds <= 120) {
+          timerDisplay.classList.add('urgent');
+        }
+
+        if (timeLeftSeconds <= 0) {
+          clearInterval(timerInterval);
+          alert('Thời gian làm bài đã kết thúc! Hệ thống sẽ tự động nộp bài.');
+          submitExam();
+        }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const mins = Math.floor(timeLeftSeconds / 60);
+      const secs = timeLeftSeconds % 60;
+      const display = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      document.getElementById('timer-display').innerText = display;
+    }
+
+    function isQuestionAnswered(q) {
+      const val = userAnswers[q.id];
+      if (!val) return false;
+      const type = q.type || 'SINGLE_CHOICE';
+
+      if (type === 'SINGLE_CHOICE' || type === 'TRUE_FALSE') {
+        return !!val;
+      } else if (type === 'MULTIPLE_CHOICE') {
+        return Array.isArray(val) && val.length > 0;
+      } else if (type === 'FILL_BLANK') {
+        return typeof val === 'string' && val.trim().length > 0;
+      } else if (type === 'CLASSIFICATION') {
+        // Co it nhat 1 item duoc gan nhom
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => !!v);
+        }
+        return false;
+      }
+      return false;
+    }
+
+    function renderQuestion(index) {
+      currentIndex = index;
+      const q = questions[index];
+      const qType = q.type || 'SINGLE_CHOICE';
+      const meta = typeMeta[qType] || { title: qType, color: 'var(--text-muted)' };
+
+      document.getElementById('current-question-num').innerText = `Câu hỏi ${index + 1} / ${questions.length}`;
+      
+      const badge = document.getElementById('question-type-badge');
+      badge.innerText = meta.title;
+      badge.style.color = meta.color;
+
+      document.getElementById('question-text').innerText = q.content;
+
+      const answered = isQuestionAnswered(q);
+      const statusTag = document.getElementById('question-status-tag');
+      statusTag.innerText = answered ? 'Đã trả lời' : 'Chưa trả lời';
+      statusTag.style.color = answered ? 'var(--primary)' : 'var(--text-muted)';
+
+      const container = document.getElementById('options-container');
+      container.innerHTML = '';
+
+      if (qType === 'SINGLE_CHOICE') {
+        q.answers.forEach((ans, idx) => {
+          const isSelected = userAnswers[q.id] === ans.id;
+          const optionDiv = document.createElement('div');
+          optionDiv.className = `option-item ${isSelected ? 'selected' : ''}`;
+          optionDiv.onclick = () => {
+            userAnswers[q.id] = ans.id;
+            renderQuestion(currentIndex);
+            renderPalette();
+          };
+
+          optionDiv.innerHTML = `
+            <div class="option-letter">${alphabet[idx] || idx + 1}</div>
+            <div class="option-content">${escapeHtml(ans.content)}</div>
+          `;
+          container.appendChild(optionDiv);
+        });
+      } 
+      else if (qType === 'MULTIPLE_CHOICE') {
+        const curSelected = Array.isArray(userAnswers[q.id]) ? userAnswers[q.id] : [];
+        const hintDiv = document.createElement('div');
+        hintDiv.style.cssText = 'font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;';
+        hintDiv.innerText = '* Chọn một hoặc nhiều đáp án bạn cho là đúng:';
+        container.appendChild(hintDiv);
+
+        q.answers.forEach((ans, idx) => {
+          const isSelected = curSelected.includes(ans.id);
+          const optionDiv = document.createElement('div');
+          optionDiv.className = `option-item ${isSelected ? 'selected' : ''}`;
+          optionDiv.onclick = () => {
+            let list = Array.isArray(userAnswers[q.id]) ? [...userAnswers[q.id]] : [];
+            if (list.includes(ans.id)) {
+              list = list.filter(id => id !== ans.id);
+            } else {
+              list.push(ans.id);
+            }
+            userAnswers[q.id] = list;
+            renderQuestion(currentIndex);
+            renderPalette();
+          };
+
+          optionDiv.innerHTML = `
+            <div class="option-letter" style="${isSelected ? 'background: #8b5cf6; border-color: #8b5cf6; color: white;' : ''}">
+              ${isSelected ? '&#10003;' : alphabet[idx] || idx + 1}
+            </div>
+            <div class="option-content">${escapeHtml(ans.content)}</div>
+          `;
+          container.appendChild(optionDiv);
+        });
+      } 
+      else if (qType === 'TRUE_FALSE') {
+        q.answers.forEach((ans) => {
+          const isSelected = userAnswers[q.id] === ans.id;
+          const isTrue = ans.content.toLowerCase() === 'đúng' || ans.content.toLowerCase() === 'true';
+          const optionDiv = document.createElement('div');
+          optionDiv.className = `option-item ${isSelected ? 'selected' : ''}`;
+          optionDiv.style.alignItems = 'center';
+          optionDiv.onclick = () => {
+            userAnswers[q.id] = ans.id;
+            renderQuestion(currentIndex);
+            renderPalette();
+          };
+
+          optionDiv.innerHTML = `
+            <div class="option-letter" style="color: ${isTrue ? 'var(--success)' : 'var(--danger)'};">
+              ${isTrue ? 'T' : 'F'}
+            </div>
+            <div class="option-content" style="font-weight: 600; font-size: 1rem; color: ${isTrue ? 'var(--success)' : 'var(--danger)'};">
+              ${escapeHtml(ans.content)}
+            </div>
+          `;
+          container.appendChild(optionDiv);
+        });
+      } 
+      else if (qType === 'FILL_BLANK') {
+        const textVal = userAnswers[q.id] || '';
+        const fillBox = document.createElement('div');
+        fillBox.style.cssText = 'padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #ffffff;';
+        fillBox.innerHTML = `
+          <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">
+            Nhập câu trả lời ngắn vào ô bên dưới:
+          </label>
+          <input type="text" id="input-fill-blank" class="form-control" value="${escapeHtml(textVal)}" placeholder="Gõ câu trả lời của bạn vào đây..." style="font-size: 1rem; padding: 0.75rem;">
+        `;
+        container.appendChild(fillBox);
+
+        const inputEl = document.getElementById('input-fill-blank');
+        inputEl.focus();
+        inputEl.addEventListener('input', (e) => {
+          userAnswers[q.id] = e.target.value.trim();
+          renderPalette();
+          const ansNow = isQuestionAnswered(q);
+          statusTag.innerText = ansNow ? 'Đã trả lời' : 'Chưa trả lời';
+          statusTag.style.color = ansNow ? 'var(--primary)' : 'var(--text-muted)';
+        });
+      } 
+      else if (qType === 'CLASSIFICATION') {
+        const categories = q.categories || [];
+        const classData = (userAnswers[q.id] && typeof userAnswers[q.id] === 'object') ? userAnswers[q.id] : {};
+
+        const table = document.createElement('table');
+        table.className = 'classification-table';
+        
+        let rowsHtml = q.answers.map(item => {
+          const chosenCategory = classData[item.id] || '';
+          const optionsHtml = categories.map(cat => `
+            <option value="${escapeHtml(cat)}" ${chosenCategory === cat ? 'selected' : ''}>${escapeHtml(cat)}</option>
+          `).join('');
+
+          return `
+            <tr>
+              <td style="font-weight: 600; width: 55%;">${escapeHtml(item.content)}</td>
+              <td>
+                <select class="form-control select-classification" data-item-id="${item.id}" style="padding: 0.4rem 0.6rem; font-size: 0.875rem;">
+                  <option value="">-- Chọn nhóm phân loại --</option>
+                  ${optionsHtml}
+                </select>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>Mục / Khái niệm</th>
+              <th>Nhóm phân loại</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        `;
+
+        container.appendChild(table);
+
+        const selects = table.querySelectorAll('.select-classification');
+        selects.forEach(sel => {
+          sel.addEventListener('change', (e) => {
+            const itemId = e.target.getAttribute('data-item-id');
+            const chosen = e.target.value;
+            if (!userAnswers[q.id] || typeof userAnswers[q.id] !== 'object') {
+              userAnswers[q.id] = {};
+            }
+            userAnswers[q.id][itemId] = chosen;
+            renderPalette();
+            const ansNow = isQuestionAnswered(q);
+            statusTag.innerText = ansNow ? 'Đã trả lời' : 'Chưa trả lời';
+            statusTag.style.color = ansNow ? 'var(--primary)' : 'var(--text-muted)';
+          });
+        });
+      }
+
+      document.getElementById('btn-prev-question').disabled = (index === 0);
+      const btnNext = document.getElementById('btn-next-question');
+      if (index === questions.length - 1) {
+        btnNext.style.display = 'none';
+      } else {
+        btnNext.style.display = 'inline-flex';
+      }
+
+      updatePaletteActive();
+    }
+
+    function renderPalette() {
+      const palette = document.getElementById('question-palette');
+      palette.innerHTML = '';
+
+      let answeredCount = 0;
+
+      questions.forEach((q, idx) => {
+        const isAnswered = isQuestionAnswered(q);
+        if (isAnswered) answeredCount++;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `nav-btn ${isAnswered ? 'answered' : ''} ${idx === currentIndex ? 'active' : ''}`;
+        btn.innerText = idx + 1;
+        btn.onclick = () => renderQuestion(idx);
+
+        palette.appendChild(btn);
+      });
+
+      document.getElementById('progress-text').innerText = `${answeredCount}/${questions.length} Đã chọn`;
+    }
+
+    function updatePaletteActive() {
+      const buttons = document.querySelectorAll('.question-palette .nav-btn');
+      buttons.forEach((btn, idx) => {
+        if (idx === currentIndex) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
+
+    function confirmSubmit() {
+      let answeredCount = 0;
+      questions.forEach(q => {
+        if (isQuestionAnswered(q)) answeredCount++;
+      });
+      const unAnsweredCount = questions.length - answeredCount;
+
+      let msg = 'Bạn có chắc chắn muốn nộp bài thi?';
+      if (unAnsweredCount > 0) {
+        msg = `Còn ${unAnsweredCount} câu chưa hoàn thành. Bạn có muốn nộp bài ngay?`;
+      }
+
+      if (confirm(msg)) {
+        submitExam();
+      }
+    }
+
+    async function submitExam() {
+      clearInterval(timerInterval);
+
+      const payloadAnswers = questions.map(q => {
+        const type = q.type || 'SINGLE_CHOICE';
+        const val = userAnswers[q.id];
+
+        if (type === 'SINGLE_CHOICE' || type === 'TRUE_FALSE') {
+          return {
+            question_id: q.id,
+            selected_answer_id: val || null
+          };
+        } else if (type === 'MULTIPLE_CHOICE') {
+          return {
+            question_id: q.id,
+            selected_answer_ids: Array.isArray(val) ? val : []
+          };
+        } else if (type === 'FILL_BLANK') {
+          return {
+            question_id: q.id,
+            user_answer_text: (val || '').trim()
+          };
+        } else if (type === 'CLASSIFICATION') {
+          return {
+            question_id: q.id,
+            classification_data: (val && typeof val === 'object') ? val : {}
+          };
+        }
+        return { question_id: q.id };
+      });
+
+      showToast('Đang chấm điểm...', 'info');
+
+      const res = await apiRequest(`/exams/${examData.id}/submit`, 'POST', {
+        answers: payloadAnswers
+      });
+
+      if (res.ok && res.data.success) {
+        const resultId = res.data.data.result_id;
+        window.location.href = `result.html?id=${resultId}`;
+      } else {
+        alert(res.data.message || 'Lỗi khi nộp bài thi!');
+      }
+    }
+  </script>
+</body>
+</html>

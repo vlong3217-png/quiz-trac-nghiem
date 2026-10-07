@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản lý đề thi - Hệ thống thi trắc nghiệm</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="admin.html" class="brand-logo">
+        <span>Hệ thống thi trắc nghiệm</span>
+        <span class="brand-badge">Quản trị</span>
+      </a>
+      <ul class="nav-menu" id="navbar-menu">
+        <!-- Rendered via auth.js -->
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container" style="padding: 2rem 1.25rem; flex: 1;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h1 style="font-size: 1.6rem; font-weight: 700;">Quản Lý Đề Thi</h1>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Thêm mới, sửa đổi thời lượng và câu hỏi đề thi</p>
+      </div>
+      <div>
+        <button id="btn-open-create-modal" class="btn btn-primary">Tạo đề thi mới</button>
+      </div>
+    </div>
+
+    <!-- Table of exams -->
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Tên đề thi</th>
+              <th>Thời lượng</th>
+              <th>Số câu</th>
+              <th>Ngày tạo</th>
+              <th style="text-align: right;">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="exam-table-body">
+            <tr>
+              <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                Đang tải danh sách đề thi...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Tạo / Sửa đề thi -->
+  <div class="modal-overlay" id="exam-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-title">Tạo Đề Thi Mới</h3>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeExamModal()">Đóng</button>
+      </div>
+      <form id="form-exam-modal">
+        <div class="modal-body">
+          <input type="hidden" id="exam-id">
+
+          <div class="form-group">
+            <label class="form-label" for="exam-title-input">Tên đề thi *</label>
+            <input type="text" id="exam-title-input" class="form-control" placeholder="Tên đề thi trắc nghiệm" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="exam-duration-input">Thời gian thi (Phút) *</label>
+            <input type="number" id="exam-duration-input" class="form-control" placeholder="Thời gian (ví dụ: 15)" min="1" max="180" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="exam-desc-input">Mô tả đề thi</label>
+            <textarea id="exam-desc-input" class="form-control" placeholder="Nội dung, yêu cầu hoặc phạm vi kiến thức..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeExamModal()">Hủy</button>
+          <button type="submit" id="btn-save-exam" class="btn btn-primary">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Hệ thống thi trắc nghiệm trực tuyến</p>
+    </div>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script>
+    let examsList = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!Auth.requireAdminRole()) return;
+
+      loadExams();
+
+      document.getElementById('btn-open-create-modal').addEventListener('click', () => {
+        openExamModal();
+      });
+
+      document.getElementById('form-exam-modal').addEventListener('submit', handleSaveExam);
+    });
+
+    async function loadExams() {
+      const tbody = document.getElementById('exam-table-body');
+      const res = await apiRequest('/exams');
+
+      if (!res.ok || !res.data.success) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 1.5rem;">Lỗi tải dữ liệu: ${res.data.message || 'Lỗi kết nối'}</td></tr>`;
+        return;
+      }
+
+      examsList = res.data.data;
+
+      if (examsList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem;">Chưa có đề thi nào.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = examsList.map(ex => `
+        <tr>
+          <td>#${ex.id}</td>
+          <td>
+            <strong>${escapeHtml(ex.title)}</strong>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(ex.description || '')}</div>
+          </td>
+          <td>${ex.duration} phút</td>
+          <td>${ex.total_questions || 0} câu</td>
+          <td>${new Date(ex.created_at).toLocaleDateString('vi-VN')}</td>
+          <td style="text-align: right;">
+            <a href="admin-questions.html?exam_id=${ex.id}" class="btn btn-outline-primary btn-sm">
+              Câu hỏi
+            </a>
+            <button class="btn btn-secondary btn-sm" onclick="editExam(${ex.id})">
+              Sửa
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="deleteExam(${ex.id})">
+              Xóa
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openExamModal(exam = null) {
+      const modal = document.getElementById('exam-modal');
+      const title = document.getElementById('modal-title');
+      const idInput = document.getElementById('exam-id');
+      const titleInput = document.getElementById('exam-title-input');
+      const durationInput = document.getElementById('exam-duration-input');
+      const descInput = document.getElementById('exam-desc-input');
+
+      if (exam) {
+        title.innerText = 'Cập Nhật Đề Thi #' + exam.id;
+        idInput.value = exam.id;
+        titleInput.value = exam.title;
+        durationInput.value = exam.duration;
+        descInput.value = exam.description || '';
+      } else {
+        title.innerText = 'Tạo Đề Thi Mới';
+        idInput.value = '';
+        titleInput.value = '';
+        durationInput.value = '15';
+        descInput.value = '';
+      }
+
+      modal.classList.add('active');
+    }
+
+    function closeExamModal() {
+      document.getElementById('exam-modal').classList.remove('active');
+    }
+
+    function editExam(id) {
+      const exam = examsList.find(e => e.id === id);
+      if (exam) openExamModal(exam);
+    }
+
+    async function handleSaveExam(e) {
+      e.preventDefault();
+      const id = document.getElementById('exam-id').value;
+      const title = document.getElementById('exam-title-input').value.trim();
+      const duration = document.getElementById('exam-duration-input').value;
+      const description = document.getElementById('exam-desc-input').value.trim();
+
+      const btnSave = document.getElementById('btn-save-exam');
+      btnSave.disabled = true;
+
+      let res;
+      if (id) {
+        res = await apiRequest(`/exams/${id}`, 'PUT', { title, duration, description });
+      } else {
+        res = await apiRequest('/exams', 'POST', { title, duration, description });
+      }
+
+      btnSave.disabled = false;
+
+      if (res.ok && res.data.success) {
+        showToast('Lưu thành công!', 'success');
+        closeExamModal();
+        loadExams();
+      } else {
+        showToast(res.data.message || 'Lỗi khi lưu đề thi!', 'error');
+      }
+    }
+
+    async function deleteExam(id) {
+      if (!confirm(`Bạn có chắc chắn muốn xóa đề thi #${id}?`)) {
+        return;
+      }
+
+      const res = await apiRequest(`/exams/${id}`, 'DELETE');
+      if (res.ok && res.data.success) {
+        showToast('Đã xóa đề thi!', 'success');
+        loadExams();
+      } else {
+        showToast(res.data.message || 'Không thể xóa đề thi!', 'error');
+      }
+    }
+  </script>
+</body>
+</html>

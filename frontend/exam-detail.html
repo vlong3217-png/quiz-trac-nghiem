@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chi tiết đề thi - Hệ thống thi trắc nghiệm</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="exams.html" class="brand-logo">
+        <span>Hệ thống thi trắc nghiệm</span>
+      </a>
+      <ul class="nav-menu" id="navbar-menu">
+        <!-- Rendered via auth.js -->
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container" style="padding: 2.5rem 1.25rem; flex: 1; max-width: 750px;">
+    <div id="exam-loading" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+      Đang tải thông tin đề thi...
+    </div>
+
+    <div id="exam-content" class="card" style="display: none; padding: 2rem;">
+      <a href="exams.html" style="text-decoration: none; color: var(--text-muted); font-size: 0.875rem;">
+        &larr; Quay lại danh sách đề thi
+      </a>
+
+      <h1 id="exam-title" style="font-size: 1.5rem; font-weight: 700; margin: 1rem 0 0.5rem;"></h1>
+      <p id="exam-desc" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem;"></p>
+
+      <div style="background: var(--bg-muted); border-radius: var(--radius-sm); border: 1px solid var(--border); padding: 1.25rem; margin-bottom: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+        <div>
+          <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Thời lượng thi</span>
+          <strong id="exam-duration" style="font-size: 1.15rem; color: var(--primary);"></strong>
+        </div>
+        <div>
+          <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Số lượng câu hỏi</span>
+          <strong id="exam-total-questions" style="font-size: 1.15rem; color: var(--text-main);"></strong>
+        </div>
+        <div>
+          <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Hình thức</span>
+          <strong style="font-size: 1.15rem; color: var(--success);">Chấm tự động</strong>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 2rem; font-size: 0.9rem; line-height: 1.6;">
+        <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem;">Quy chế làm bài:</h3>
+        <ul style="padding-left: 1.25rem; color: var(--text-muted);">
+          <li>Hệ thống tính giờ đếm ngược khi bấm nút "Bắt đầu làm bài".</li>
+          <li>Thí sinh có thể chọn lại đáp án trước khi nhấn "Nộp bài".</li>
+          <li>Khi hết giờ làm bài, hệ thống sẽ tự động nộp bài.</li>
+          <li>Điểm số và đáp án chi tiết được trả về ngay sau khi nộp.</li>
+        </ul>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem;">
+        <a id="btn-start-quiz" href="#" class="btn btn-primary btn-lg" style="flex: 1;">Bắt đầu làm bài</a>
+        <a href="exams.html" class="btn btn-secondary btn-lg">Quay lại</a>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Hệ thống thi trắc nghiệm trực tuyến</p>
+    </div>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const examId = urlParams.get('id');
+
+      if (!examId) {
+        showToast('Không tìm thấy mã đề thi!', 'error');
+        window.location.href = 'exams.html';
+        return;
+      }
+
+      const res = await apiRequest(`/exams/${examId}`);
+      document.getElementById('exam-loading').style.display = 'none';
+
+      if (res.ok && res.data.success) {
+        const exam = res.data.data;
+        document.getElementById('exam-title').innerText = exam.title;
+        document.getElementById('exam-desc').innerText = exam.description || 'Không có mô tả chi tiết.';
+        document.getElementById('exam-duration').innerText = `${exam.duration} Phút`;
+        document.getElementById('exam-total-questions').innerText = `${exam.total_questions || 0} Câu hỏi`;
+        
+        document.getElementById('btn-start-quiz').href = `quiz.html?id=${exam.id}`;
+        document.getElementById('exam-content').style.display = 'block';
+      } else {
+        showToast(res.data.message || 'Không thể tải đề thi!', 'error');
+        setTimeout(() => { window.location.href = 'exams.html'; }, 1000);
+      }
+    });
+  </script>
+</body>
+</html>
