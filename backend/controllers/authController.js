@@ -70,7 +70,7 @@ async function register(req, res) {
     console.error('[Auth register error]:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi server khi đăng ký: ' + error.message
+      message: 'Lỗi máy chủ khi đăng ký tài khoản. Vui lòng thử lại sau!'
     });
   }
 }
@@ -135,7 +135,7 @@ async function login(req, res) {
     console.error('[Auth login error]:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi server khi đăng nhập: ' + error.message
+      message: 'Lỗi máy chủ khi đăng nhập. Vui lòng thử lại sau!'
     });
   }
 }
@@ -160,7 +160,7 @@ async function getMe(req, res) {
     console.error('[Auth getMe error]:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi server khi lấy thông tin người dùng: ' + error.message
+      message: 'Lỗi máy chủ khi lấy thông tin người dùng. Vui lòng thử lại sau!'
     });
   }
 }

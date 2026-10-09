@@ -217,3 +217,9 @@ INSERT INTO `answers` (`id`, `question_id`, `content`, `is_correct`) VALUES
 (58, 15, 'Sử dụng Prepared Statements (tham số hóa với dấu ?)', 1),
 (59, 15, 'Chỉ cho phép người dùng gửi request dạng GET', 0),
 (60, 15, 'Lọc bỏ tất cả dấu cách trong câu query', 0);
+
+-- 7. TẠO TÀI KHOẢN DATABASE DÀNH RIÊNG CHO ỨNG DỤNG (Least Privilege)
+CREATE USER IF NOT EXISTS 'quiz_user'@'%' IDENTIFIED BY 'quiz_secure_pass_2026';
+GRANT SELECT, INSERT, UPDATE, DELETE ON `quiz_system`.* TO 'quiz_user'@'%';
+FLUSH PRIVILEGES;
+

@@ -30,7 +30,7 @@ async function getQuestionById(req, res) {
     });
   } catch (error) {
     console.error('[Question getQuestionById error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi lấy chi tiết câu hỏi: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi lấy chi tiết câu hỏi.' });
   }
 }
 
@@ -88,7 +88,7 @@ async function createQuestion(req, res) {
   } catch (error) {
     await connection.rollback();
     console.error('[Question createQuestion error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi tạo câu hỏi: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi tạo câu hỏi.' });
   } finally {
     connection.release();
   }
@@ -155,7 +155,7 @@ async function updateQuestion(req, res) {
   } catch (error) {
     await connection.rollback();
     console.error('[Question updateQuestion error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi sửa câu hỏi: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi cập nhật câu hỏi.' });
   } finally {
     connection.release();
   }
@@ -177,7 +177,7 @@ async function deleteQuestion(req, res) {
     });
   } catch (error) {
     console.error('[Question deleteQuestion error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi xóa câu hỏi: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi xóa câu hỏi.' });
   }
 }
 

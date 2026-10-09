@@ -28,7 +28,7 @@ async function getAllUsers(req, res) {
     });
   } catch (error) {
     console.error('[User getAllUsers error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi lấy danh sách sinh viên: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi lấy danh sách sinh viên.' });
   }
 }
 
@@ -86,7 +86,7 @@ async function createUser(req, res) {
     });
   } catch (error) {
     console.error('[User createUser error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi tạo sinh viên: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi tạo tài khoản sinh viên.' });
   }
 }
 
@@ -138,7 +138,7 @@ async function updateUser(req, res) {
     });
   } catch (error) {
     console.error('[User updateUser error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi sửa tài khoản: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi cập nhật tài khoản sinh viên.' });
   }
 }
 
@@ -162,7 +162,7 @@ async function deleteUser(req, res) {
     });
   } catch (error) {
     console.error('[User deleteUser error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi xóa sinh viên: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi xóa tài khoản sinh viên.' });
   }
 }
 

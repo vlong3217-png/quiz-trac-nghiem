@@ -4,9 +4,9 @@ Hệ thống thi trắc nghiệm trực tuyến hỗ trợ đa dạng 5 loại c
 
 ---
 
-## 1. Kiến trúc Hệ thống (Commit 2: Reverse Proxy + HTTPS + Prometheus + Grafana + cAdvisor)
+## 1. Kiến trúc Hệ thống (Commit 3: Nginx Proxy + HTTPS + Prometheus + Grafana + cAdvisor + Loki + Promtail)
 
-Hệ thống tích hợp đầy đủ ngăn xếp ứng dụng, proxy bảo mật và giám sát metrics thời gian thực:
+Hệ thống kết hợp ngăn xếp ứng dụng, bảo mật và toàn bộ hạ tầng giám sát Metrics & Log tập trung:
 
 ```text
        Trình duyệt (Browser)
@@ -15,8 +15,8 @@ Hệ thống tích hợp đầy đủ ngăn xếp ứng dụng, proxy bảo mậ
                 ▼
 ┌────────────────────────────────────────────────────────┐
 │            quiz_proxy (Nginx Reverse Proxy)            │
-│  - SSL/TLS Termination (Self-signed cert cho localhost)│
-│  - Cấu hình Security Headers                           │
+│  - SSL/TLS Termination (HTTPS)                         │
+│  - Security Headers                                    │
 └───────────────────────────┬────────────────────────────┘
                             │ (quiz_system_network)
              ┌──────────────┴──────────────┐
@@ -38,13 +38,27 @@ Hệ thống tích hợp đầy đủ ngăn xếp ứng dụng, proxy bảo mậ
              │   Metrics Scraper   │  │ Port 8088 (Host)│
              └──────────▲──────────┘  └─────────────────┘
                         │
-       ┌────────────────┴────────────────┐
-       │                                 │
-┌──────┴──────────────┐       ┌──────────┴──────────┐
-│    quiz_cadvisor    │       │    quiz_grafana     │
-│ Docker Metrics (CPU,│       │ Dashboards (Port    │
-│  RAM, Disk, Network)│       │ 3001) Auto-provision│
-└─────────────────────┘       └─────────────────────┘
+       ┌────────────────┴────────────────────────┐
+       │                                         │
+┌──────┴──────────────┐               ┌──────────┴──────────┐
+│    quiz_cadvisor    │               │    quiz_grafana     │
+│ Docker Metrics (CPU,│               │ Metrics & Logs      │
+│  RAM, Disk, Network)│               │ Dashboard (:3001)   │
+└─────────────────────┘               └──────────▲──────────┘
+                                                 │
+                                                 │ LogQL
+                                      ┌──────────┴──────────┐
+                                      │      quiz_loki      │
+                                      │ Log Aggregator      │
+                                      │ (Port 3101 nội bộ)  │
+                                      └──────────▲──────────┘
+                                                 │
+                                                 │ Push logs
+                                      ┌──────────┴──────────┐
+                                      │    quiz_promtail    │
+                                      │ Đọc Docker logs qua │
+                                      │ /var/run/docker.sock│
+                                      └─────────────────────┘
 ```
 
 ---
@@ -54,14 +68,18 @@ Hệ thống tích hợp đầy đủ ngăn xếp ứng dụng, proxy bảo mậ
 ```text
 Hệ thống Quiz - Thi trắc nghiệm/
 ├── monitoring/
+│   ├── loki/
+│   │   └── loki-config.yml                 # Cấu hình lưu trữ & schema Loki (TSDB)
+│   ├── promtail/
+│   │   └── promtail-config.yml             # Cấu hình Promtail đọc Docker container logs
 │   ├── prometheus/
 │   │   └── prometheus.yml                  # Scrape config (Prometheus, cAdvisor, Node.js)
 │   └── grafana/
 │       ├── provisioning/
-│       │   ├── datasources/datasource.yml  # Tự động nạp Prometheus Data Source
+│       │   ├── datasources/datasource.yml  # Tự động nạp Prometheus & Loki Data Sources
 │       │   └── dashboards/dashboard-provider.yml
 │       └── dashboards/
-│           └── quiz-system-dashboard.json  # Dashboard dựng sẵn: CPU, RAM, API Traffic
+│           └── quiz-system-dashboard.json  # Dashboard: Metrics + Live Logs Panel
 ├── nginx/
 │   ├── nginx.conf                          # Reverse Proxy, SSL HTTPS, Security Headers
 │   └── certs/
@@ -81,7 +99,7 @@ Hệ thống Quiz - Thi trắc nghiệm/
 │   └── Dockerfile                          # Dockerfile frontend
 ├── database/
 │   └── schema.sql                          # Database schema & dữ liệu khởi tạo
-├── docker-compose.yml                      # Định nghĩa 8 services & volume & network
+├── docker-compose.yml                      # Định nghĩa 10 services & volume & network
 ├── .env.example                            # Mẫu biến môi trường an toàn
 ├── .gitignore
 └── README.md
@@ -107,8 +125,10 @@ cp .env.example .env
 Tại thư mục gốc dự án, thực hiện lệnh:
 
 ```bash
-docker compose up -d --build
+docker compose up -d
 ```
+
+*(Hoặc `docker compose up -d --build` khi cần build lại hình ảnh).*
 
 ### Bước 3: Kiểm tra trạng thái các container
 
@@ -116,15 +136,17 @@ docker compose up -d --build
 docker compose ps
 ```
 
-Kết quả hiển thị đầy đủ 8 containers:
+Toàn bộ **10 containers** sẽ hiển thị trạng thái `Up`:
 * `quiz_proxy`: Nginx Reverse Proxy (Up - Ports: `80`, `443`)
 * `quiz_frontend`: Frontend Web (Up - Port `80/tcp` nội bộ)
 * `quiz_backend`: Node.js API (Up - Port `5000/tcp` nội bộ)
 * `quiz_mysql`: MySQL 8.0 (Up healthy - Port `3308->3306`)
 * `quiz_phpmyadmin`: phpMyAdmin (Up - Port `8088->80`)
 * `quiz_prometheus`: Prometheus Server (Up - Port `9091->9090`)
-* `quiz_cadvisor`: cAdvisor Container Metrics (Up)
+* `quiz_cadvisor`: cAdvisor Container Metrics (Up healthy)
 * `quiz_grafana`: Grafana Dashboard (Up - Port `3001->3000`)
+* `quiz_loki`: Loki Log Store (Up - Port `3101->3100`)
+* `quiz_promtail`: Promtail Log Shipper (Up)
 
 ---
 
@@ -135,29 +157,43 @@ Kết quả hiển thị đầy đủ 8 containers:
 | **Website chính (HTTPS)** | [https://localhost](https://localhost) | Cổng 443 có SSL bảo mật |
 | **Website (HTTP redirect)** | [http://localhost](http://localhost) | Tự động chuyển hướng (Redirect 301) sang HTTPS |
 | **phpMyAdmin** | [http://localhost:8088](http://localhost:8088) | Quản trị CSDL (Server: `mysql`, User: `root`) |
-| **Prometheus** | [http://localhost:9091](http://localhost:9091) | Xem trạng thái targets & truy vấn PromQL |
+| **Prometheus** | [http://localhost:9091](http://localhost:9091) | Xem trạng thái scrape targets & query PromQL |
 | **Grafana** | [http://localhost:3001](http://localhost:3001) | **User:** `admin` \| **Pass:** `admin123` |
+| **Loki API** | `http://loki:3100` (Nội bộ Docker) \| [http://localhost:3101](http://localhost:3101) (Host) | Tiếp nhận & phân tích LogQL |
 
 ---
 
-## 5. Giám sát hệ thống (Monitoring Guide)
+## 5. Hướng dẫn Giám sát Log tập trung (Loki + Promtail + LogQL)
 
-### A. Kiểm tra Prometheus Targets
-Truy cập [http://localhost:9091/targets](http://localhost:9091/targets) để kiểm tra các mục scrape:
-1. `prometheus` (`http://localhost:9090/metrics`): **UP**
-2. `cadvisor` (`http://cadvisor:8080/metrics`): **UP**
-3. `quiz_backend` (`http://backend:5000/metrics`): **UP**
+### A. Vai trò của Loki & Promtail trong hệ thống
+* **Promtail**: Là log shipper đóng vai trò thu thập log liên tục từ Docker socket (`/var/run/docker.sock`) của tất cả các container (`quiz_backend`, `quiz_proxy`, `quiz_mysql`,...), tự động gán nhãn metadata (`container`, `service`, `job`), sau đó đẩy log qua mạng Docker về Loki.
+* **Loki**: Đóng vai trò là log aggregation server (tương tự như Prometheus nhưng dành cho log), đánh chỉ mục nhãn và lưu trữ an toàn log trong volume Docker `quiz_loki_data`.
 
-### B. Truy cập Grafana Dashboard
-1. Truy cập [http://localhost:3001](http://localhost:3001), đăng nhập với `admin` / `admin123`.
-2. Data Source `Prometheus` đã được cấu hình tự động (Provisioning) sẵn sàng.
-3. Vào menu **Dashboards** $\rightarrow$ chọn **Quiz System Monitoring Dashboard**:
-   - **Tổng Containers Đang Chạy**: Giám sát số container active thời gian thực.
-   - **Trạng Thái Backend API**: Gauge tình trạng sống (1 = UP).
-   - **CPU Usage Từng Container**: Biểu đồ % CPU tiêu thụ của từng container (cAdvisor).
-   - **Bộ Nhớ RAM Từng Container**: Biểu đồ dung lượng RAM chiếm dụng (cAdvisor).
-   - **Lưu Lượng Requests HTTP/s (API Traffic)**: Biểu đồ tốc độ request theo router và method (`prom-client`).
-   - **Bộ Nhớ Heap Node.js Runtime**: Giám sát Heap Used / Heap Total của Node.js.
+### B. Cách truy cập và tra cứu LogQL trong Grafana
+1. Đăng nhập Grafana tại [http://localhost:3001](http://localhost:3001) (`admin` / `admin123`).
+2. Vào biểu tượng menu **Explore** (hình la bàn ở thanh bên trái).
+3. Ở dropdown chọn Data Source phía trên góc trái, chọn **Loki** (hệ thống đã nạp sẵn tự động cả 2 Data Sources: `Prometheus` và `Loki`).
+4. Nhập câu truy vấn LogQL vào ô tìm kiếm và bấm **Run query**.
+
+### C. 3 Truy vấn LogQL cơ bản đã kiểm tra thành công
+
+#### 🔍 Query 1: Xem toàn bộ log của Backend API
+```logql
+{container="quiz_backend"}
+```
+* **Ý nghĩa:** Lọc toàn bộ luồng log xuất ra từ container `quiz_backend` (bao gồm các request API, trạng thái kết nối MySQL, và các tiến trình Express runtime).
+
+#### 🔍 Query 2: Lọc các log lỗi hoặc kiểm tra lỗi của Backend
+```logql
+{container="quiz_backend"} |= "error"
+```
+* **Ý nghĩa:** Lọc các dòng log trong container `quiz_backend` có chứa từ khóa `"error"` (không phân biệt ngữ cảnh), giúp quản trị viên truy vết nhanh chóng các request lỗi, exception hoặc HTTP 4xx/5xx.
+
+#### 🔍 Query 3: Xem log truy cập và cảnh báo của Nginx Reverse Proxy
+```logql
+{container="quiz_proxy"}
+```
+* **Ý nghĩa:** Lọc toàn bộ log truy cập (access log) và log lỗi (error log) của Nginx Reverse Proxy `quiz_proxy`, bao gồm IP client, phương thức HTTP, mã HTTP status code (200, 301, 404, 502) và đường dẫn URL truy cập.
 
 ---
 
@@ -171,5 +207,27 @@ Truy cập [http://localhost:9091/targets](http://localhost:9091/targets) để 
 2. **Kiểm tra chức năng ứng dụng**:
    - Đăng nhập học sinh (`sinhvien` / `user123`) hoặc admin (`admin` / `admin123`).
    - Làm bài thi trắc nghiệm, nộp bài, tính điểm tự động lưu DB bình thường.
-3. **Kiểm tra phpMyAdmin**: Mở `http://localhost:8088` kết nối thành công tới MySQL `quiz_mysql`.
+3. **Kiểm tra phpMyAdmin**: Mở `http://localhost:8088` kết nối thành công tới MySQL `quiz_mysql` (chỉ lắng nghe nội bộ máy chủ `127.0.0.1`).
 4. **Kiểm tra Prometheus & Grafana**: Mở `http://localhost:9091` và `http://localhost:3001` hoạt động trơn tru.
+5. **Kiểm tra Loki & LogQL**: Mở Grafana Explore $\rightarrow$ chọn Data Source `Loki` $\rightarrow$ chạy 3 câu truy vấn LogQL ở mục 5.
+
+---
+
+## 7. Báo cáo Tăng cường Bảo mật (Security Hardening)
+
+Hệ thống đã được củng cố bảo mật toàn diện trên toàn bộ các tầng kiến trúc:
+* **Docker Hardening**: 
+  - Backend chạy dưới quyền non-root (`USER node`, UID 1000).
+  - Thêm `no-new-privileges:true` ngăn chặn leo thang đặc quyền cho toàn bộ các dịch vụ trọng yếu.
+  - Cổng MySQL (3308) và phpMyAdmin (8088) được giới hạn loopback `127.0.0.1`, không phơi bày ra mạng bên ngoài.
+* **MySQL Least Privilege**:
+  - Tạo người dùng riêng `quiz_user` với quyền tối thiểu (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) thay vì cấp quyền `root`.
+* **Backend Security**:
+  - Tắt `X-Powered-By: Express` tránh lộ fingerprint công nghệ.
+  - Giới hạn body payload `1MB` chống tấn công DoS/ReDoS.
+  - Che giấu toàn bộ `error.message` và stack trace phía API response, chỉ ghi nhận chi tiết tại server log.
+* **Nginx Hardening**:
+  - Bật `server_tokens off;` ẩn phiên bản Nginx.
+  - Giới hạn `client_max_body_size 10M;`.
+  - Thiết lập đầy đủ HTTP Security Headers (`nosniff`, `SAMEORIGIN`, `Permissions-Policy`, `CSP`, `Referrer-Policy`).
+

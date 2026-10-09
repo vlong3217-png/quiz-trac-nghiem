@@ -40,7 +40,7 @@ async function getAllResults(req, res) {
     });
   } catch (error) {
     console.error('[Result getAllResults error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi lấy danh sách kết quả: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi lấy danh sách kết quả.' });
   }
 }
 
@@ -176,7 +176,7 @@ async function getResultById(req, res) {
 
   } catch (error) {
     console.error('[Result getResultById error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi lấy chi tiết kết quả: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi lấy chi tiết kết quả.' });
   }
 }
 
@@ -215,7 +215,7 @@ async function getUserResults(req, res) {
     });
   } catch (error) {
     console.error('[Result getUserResults error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi lấy lịch sử bài thi: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi lấy lịch sử bài thi.' });
   }
 }
 
@@ -239,7 +239,7 @@ async function getAdminStats(req, res) {
     });
   } catch (error) {
     console.error('[Result getAdminStats error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi lấy thống kê dashboard: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi lấy thống kê dashboard.' });
   }
 }
 

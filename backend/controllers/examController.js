@@ -23,7 +23,7 @@ async function getAllExams(req, res) {
     });
   } catch (error) {
     console.error('[Exam getAllExams error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi lấy danh sách đề thi: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi lấy danh sách đề thi.' });
   }
 }
 
@@ -55,7 +55,7 @@ async function getExamById(req, res) {
     });
   } catch (error) {
     console.error('[Exam getExamById error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi lấy chi tiết đề thi: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi lấy chi tiết đề thi.' });
   }
 }
 
@@ -96,7 +96,7 @@ async function createExam(req, res) {
     });
   } catch (error) {
     console.error('[Exam createExam error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi tạo đề thi: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi tạo đề thi.' });
   }
 }
 
@@ -142,7 +142,7 @@ async function updateExam(req, res) {
     });
   } catch (error) {
     console.error('[Exam updateExam error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi sửa đề thi: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi cập nhật đề thi.' });
   }
 }
 
@@ -162,7 +162,7 @@ async function deleteExam(req, res) {
     });
   } catch (error) {
     console.error('[Exam deleteExam error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi xóa đề thi: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi xóa đề thi.' });
   }
 }
 
@@ -241,7 +241,7 @@ async function getExamQuestions(req, res) {
     });
   } catch (error) {
     console.error('[Exam getExamQuestions error]:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi lấy câu hỏi đề thi: ' + error.message });
+    res.status(500).json({ success: false, message: 'Đã xảy ra lỗi trên hệ thống khi lấy câu hỏi đề thi.' });
   }
 }
 
@@ -434,7 +434,7 @@ async function submitExam(req, res) {
     console.error('[Exam submitExam error]:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi server khi nộp bài thi: ' + error.message
+      message: 'Đã xảy ra lỗi trên hệ thống khi nộp bài thi.'
     });
   } finally {
     connection.release();

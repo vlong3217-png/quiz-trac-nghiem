@@ -4,6 +4,8 @@ services:
     image: nginx:alpine
     container_name: quiz_proxy
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "80:80"
       - "443:443"
@@ -23,24 +25,28 @@ services:
       dockerfile: Dockerfile
     container_name: quiz_frontend
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       - backend
     networks:
       - quiz_network
 
-  # 3. Backend Node.js API Service (Chi trao doi noi bo voi Nginx qua port 5000)
+  # 3. Backend Node.js API Service (Chi trao doi noi bo voi Nginx qua port 5000, chay bang non-root user node)
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: quiz_backend
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       PORT: 5000
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_USER: ${DB_USER:-root}
-      DB_PASSWORD: ${DB_PASSWORD:-root123456}
+      DB_USER: ${DB_USER:-quiz_user}
+      DB_PASSWORD: ${DB_PASSWORD:-quiz_secure_pass_2026}
       DB_NAME: ${DB_NAME:-quiz_system}
       JWT_SECRET: ${JWT_SECRET:-quiz_system_super_secret_jwt_key_2026}
     depends_on:
@@ -49,16 +55,18 @@ services:
     networks:
       - quiz_network
 
-  # 4. Database MySQL Service
+  # 4. Database MySQL Service (Gioi han ket noi tren loopback 127.0.0.1 neu truy cap tu host)
   mysql:
     image: mysql:8.0
     container_name: quiz_mysql
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root123456}
       MYSQL_DATABASE: ${DB_NAME:-quiz_system}
     ports:
-      - "${MYSQL_PORT:-3308}:3306"
+      - "127.0.0.1:${MYSQL_PORT:-3308}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./database/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -71,17 +79,19 @@ services:
       retries: 5
       start_period: 20s
 
-  # 5. phpMyAdmin Database Management Service
+  # 5. phpMyAdmin Database Management Service (Gioi han loopback 127.0.0.1 de khong cong khai ra mang ngoai)
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
     container_name: quiz_phpmyadmin
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       PMA_HOST: mysql
       PMA_PORT: 3306
       UPLOAD_LIMIT: 64M
     ports:
-      - "${PMA_PORT:-8088}:80"
+      - "127.0.0.1:${PMA_PORT:-8088}:80"
     depends_on:
       mysql:
         condition: service_healthy
@@ -125,11 +135,13 @@ services:
     networks:
       - quiz_network
 
-  # 8. Grafana Service (Truc quan hoa Dashboard thong so he thong)
+  # 8. Grafana Service (Truc quan hoa Metrics + Logs tap trung)
   grafana:
     image: grafana/grafana:latest
     container_name: quiz_grafana
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "${GRAFANA_PORT:-3001}:3000"
     environment:
@@ -143,6 +155,38 @@ services:
       - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus
+      - loki
+    networks:
+      - quiz_network
+
+  # 9. Loki Service (Luu tru & danh chi muc Log tap trung)
+  loki:
+    image: grafana/loki:latest
+    container_name: quiz_loki
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "${LOKI_PORT:-3101}:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - quiz_network
+
+  # 10. Promtail Service (Doc Docker container logs va day ve Loki)
+  promtail:
+    image: grafana/promtail:latest
+    container_name: quiz_promtail
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
     networks:
       - quiz_network
 
@@ -158,3 +202,5 @@ volumes:
     name: quiz_prometheus_data
   grafana_data:
     name: quiz_grafana_data
+  loki_data:
+    name: quiz_loki_data
